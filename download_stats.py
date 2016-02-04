@@ -4,19 +4,45 @@ from collections import OrderedDict
 import datetime
 import itertools as it
 import math
+import json
+import gzip
 
-def load_repos(g):
-    # Pre-populate with the first 100 repos
-    return OrderedDict([(repo.owner.login + "/" + repo.name,
-                            {"repoObj": repo,
-                             "id": repo.id,
-                             "stargazers_count": repo.stargazers_count,
-                             "crawled": False}) \
-                        for repo in g.search_repositories("stars:>1", sort="stars", order="desc")[:100]])
+def load_repos(g, data_path):
+    try:
+        with gzip.open(data_path + "/cached_repos.json.gz", "r") as cached_repos:
+            repos = json.loads(cached_repos.read())
+            return OrderedDict(sorted(repos.iteritems(), key=lambda i: -i[1]["stargazers_count"]))
+    except IOError:
+        # No cached data, pre-populate with the first 10 repos
+        return OrderedDict([(repo.owner.login + "/" + repo.name,
+                                {"repoObj": repo,
+                                 "id": repo.id,
+                                 "stargazers_count": repo.stargazers_count,
+                                 "crawled": False}) \
+                            for repo in g.search_repositories("stars:>1", sort="stars", order="desc")[:10]])
+    else:
+        raise
 
-def load_users(g):
-    # Nothing yet, load already crawled info from disk
-    return OrderedDict()
+def load_users(g, data_path):
+    try:
+        with gzip.open(data_path + "/cached_users.json.gz", "r") as cached_users:
+            users = json.loads(cached_users.read())
+            return OrderedDict(sorted(users.iteritems(), key=lambda i: -i[1]["starweight"]))
+    except IOError:
+        # No cached data, will just get crawled
+        return OrderedDict()
+    else:
+        raise
+
+def save_repos(repo_dict, data_path):
+    repos_as_json = json.dumps({key: {subkey: subval for (subkey, subval) in val.items() if subkey != "repoObj"} for (key, val) in repo_dict.items()})
+    with gzip.open(data_path + "/cached_repos.json.gz", "w") as cached_repos:
+        cached_repos.write(repos_as_json)
+
+def save_users(user_dict, data_path):
+    users_as_json = json.dumps({key: {subkey: subval for (subkey, subval) in val.items() if subkey != "userObj"} for (key, val) in user_dict.items()})
+    with gzip.open(data_path + "/cached_users.json.gz", "w") as cached_users:
+        cached_users.write(users_as_json)
 
 def get_contributors(repo):
     try:
@@ -29,6 +55,8 @@ def get_contributors(repo):
         elif e.data[u'message'] == u'Repository access blocked':
             print "Github Exception: ", e.data[u'block']
             return [], False
+        else:
+            raise
 
 def get_stars(user):
 #    try:
@@ -42,7 +70,7 @@ def get_next(crawlables):
     return next_crawlable[0], next_crawlable[1]
 
 def process_contributors(next_repo_key, contributors, to_crawl):
-    to_crawl["repos"][next_repo_key]["contributors"] = OrderedDict()
+    to_crawl["repos"][next_repo_key]["contributors"] = dict()
     total_contribs = sum([math.log1p(cTuple[2]) for cTuple in contributors])
     to_crawl["repos"][next_repo_key]["total_log1p_contribs"] = total_contribs
     total_starweight = to_crawl["repos"][next_repo_key]["stargazers_count"]
@@ -65,7 +93,7 @@ def process_contributors(next_repo_key, contributors, to_crawl):
     to_crawl["users"] = OrderedDict(sorted(to_crawl["users"].iteritems(), key=lambda i: -i[1]["starweight"]))
 
 def process_stars(next_user_key, stars, to_crawl):
-    to_crawl["users"][next_user_key]["stars"] = OrderedDict()
+    to_crawl["users"][next_user_key]["stars"] = dict()
     for star in stars:
         repo_fullname = star.owner.login + "/" + star.name
         to_crawl["users"][next_user_key]["stars"][repo_fullname] = \
@@ -91,16 +119,19 @@ def mark_user_complete(to_crawl, next_user_key, success):
     if not success:
         to_crawl["users"][next_user_key]["failed"] = True
 
-def crawl_github(git_uname, git_pw, root_path_data):
+def crawl_github(git_uname, git_pw, data_path):
     g = Github(login_or_token=git_uname, password=git_pw, per_page=100)
-    to_crawl = {"repos": load_repos(g), "users": load_users(g)}
-    print to_crawl["repos"].values()[0]["repoObj"].owner.name ## temporary hack to reset rate limiting
-    while g.rate_limiting[0] > 3900:
+    to_crawl = {"repos": load_repos(g, data_path), "users": load_users(g, data_path)}
+    i = 0
+    print "Logged in as %s" % g.get_user().name ## temporary hack to reset rate limiting
+    while g.rate_limiting[0] > 250:
         print "API calls remaining before %s: %d" % (
             datetime.datetime.fromtimestamp(g.rate_limiting_resettime).strftime('%Y-%m-%d %H:%M:%S'),
             g.rate_limiting[0])
         next_repo_key, next_repo_val = get_next(to_crawl["repos"])
         print "Processing repo: %s (%d stars)" % (next_repo_key, next_repo_val["stargazers_count"])
+        if "repoObj" not in next_repo_val: # cached from disk
+            next_repo_val["repoObj"] = g.get_repo(next_repo_key)
         contributors, success = get_contributors(next_repo_val["repoObj"])
         if success:
             process_contributors(next_repo_key, contributors, to_crawl)
@@ -108,11 +139,23 @@ def crawl_github(git_uname, git_pw, root_path_data):
 
         next_user_key, next_user_val = get_next(to_crawl["users"])
         print "Processing user: %s (%f starweight)" % (next_user_key, next_user_val["starweight"])
+        if "userObj" not in next_user_val: # cached from disk
+            next_user_val["userObj"] = g.get_user(next_user_key)
         stars, success = get_stars(next_user_val["userObj"])
         if success:
             process_stars(next_user_key, stars, to_crawl)
         mark_user_complete(to_crawl, next_user_key, success)
 
+        # save progress every 25 users/repos
+        i = i + 1
+        if i % 25 == 0:
+            print "Processed %d times, saving..." % i
+            save_repos(to_crawl["repos"], data_path)
+            save_users(to_crawl["users"], data_path)
+
+
+    save_repos(to_crawl["repos"], data_path)
+    save_users(to_crawl["users"], data_path)
     return to_crawl
 
 if __name__ == "__main__":
