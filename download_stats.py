@@ -153,7 +153,7 @@ def crawl_github(git_uname, git_pw, data_path):
             save_repos(to_crawl["repos"], data_path)
             save_users(to_crawl["users"], data_path)
 
-
+    print g.rate_limiting
     save_repos(to_crawl["repos"], data_path)
     save_users(to_crawl["users"], data_path)
     return to_crawl
