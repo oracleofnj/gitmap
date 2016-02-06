@@ -2,6 +2,7 @@
 from github import *
 from collections import OrderedDict
 import datetime
+import time
 import itertools as it
 import math
 import json
@@ -120,38 +121,46 @@ def mark_user_complete(to_crawl, next_user_key, success):
         to_crawl["users"][next_user_key]["failed"] = True
 
 def crawl_github(git_uname, git_pw, data_path):
-    g = Github(login_or_token=git_uname, password=git_pw, per_page=100)
-    to_crawl = {"repos": load_repos(g, data_path), "users": load_users(g, data_path)}
-    i = 0
-    print "Logged in as %s" % g.get_user().name ## temporary hack to reset rate limiting
-    while g.rate_limiting[0] > 250:
-        print "API calls remaining before %s: %d" % (
-            datetime.datetime.fromtimestamp(g.rate_limiting_resettime).strftime('%Y-%m-%d %H:%M:%S'),
-            g.rate_limiting[0])
-        next_repo_key, next_repo_val = get_next(to_crawl["repos"])
-        print "Processing repo: %s (%d stars)" % (next_repo_key, next_repo_val["stargazers_count"])
-        if "repoObj" not in next_repo_val: # cached from disk
-            next_repo_val["repoObj"] = g.get_repo(next_repo_key)
-        contributors, success = get_contributors(next_repo_val["repoObj"])
-        if success:
-            process_contributors(next_repo_key, contributors, to_crawl)
-        mark_repo_complete(to_crawl, next_repo_key, success)
+    while True:
+        g = Github(login_or_token=git_uname, password=git_pw, per_page=100)
+        to_crawl = {"repos": load_repos(g, data_path), "users": load_users(g, data_path)}
+        i = 0
+        print "Logged in as %s" % g.get_user().name ## temporary hack to reset rate limiting
+        while g.rate_limiting[0] > 250:
+            try:
+                print "API calls remaining before %s: %d" % (
+                    datetime.datetime.fromtimestamp(g.rate_limiting_resettime).strftime('%Y-%m-%d %H:%M:%S'),
+                    g.rate_limiting[0])
+                next_repo_key, next_repo_val = get_next(to_crawl["repos"])
+                print "Processing repo: %s (%d stars)" % (next_repo_key, next_repo_val["stargazers_count"])
+                if "repoObj" not in next_repo_val: # cached from disk
+                    next_repo_val["repoObj"] = g.get_repo(next_repo_key)
+                contributors, success = get_contributors(next_repo_val["repoObj"])
+                if success:
+                    process_contributors(next_repo_key, contributors, to_crawl)
+                mark_repo_complete(to_crawl, next_repo_key, success)
 
-        next_user_key, next_user_val = get_next(to_crawl["users"])
-        print "Processing user: %s (%f starweight)" % (next_user_key, next_user_val["starweight"])
-        if "userObj" not in next_user_val: # cached from disk
-            next_user_val["userObj"] = g.get_user(next_user_key)
-        stars, success = get_stars(next_user_val["userObj"])
-        if success:
-            process_stars(next_user_key, stars, to_crawl)
-        mark_user_complete(to_crawl, next_user_key, success)
+                next_user_key, next_user_val = get_next(to_crawl["users"])
+                print "Processing user: %s (%f starweight)" % (next_user_key, next_user_val["starweight"])
+                if "userObj" not in next_user_val: # cached from disk
+                    next_user_val["userObj"] = g.get_user(next_user_key)
+                stars, success = get_stars(next_user_val["userObj"])
+                if success:
+                    process_stars(next_user_key, stars, to_crawl)
+                mark_user_complete(to_crawl, next_user_key, success)
 
-        # save progress every 25 users/repos
-        i = i + 1
-        if i % 25 == 0:
-            print "Processed %d times, saving..." % i
-            save_repos(to_crawl["repos"], data_path)
-            save_users(to_crawl["users"], data_path)
+                # save progress every 25 users/repos
+                i = i + 1
+                if i % 25 == 0:
+                    print "Processed %d times, saving..." % i
+                    save_repos(to_crawl["repos"], data_path)
+                    save_users(to_crawl["users"], data_path)
+            except Exception as e:
+                print e
+                print "Going to sleep for an hour and a half..."
+                time.sleep(90*60)
+                print "Breaking out of the inner loop and resuming from saved..."
+                break
 
     print g.rate_limiting
     save_repos(to_crawl["repos"], data_path)
