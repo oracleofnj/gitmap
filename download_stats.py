@@ -53,6 +53,8 @@ def get_contributors(repo):
         if e.data[u'message'] == u'The history or contributor list is too large to list contributors for this repository via the API.':
             # Linux!!
             return [(repo.owner, repo.owner.login, 100, repo.owner.id)], True
+        elif e.data[u'message'] == u'Not Found':
+            return [], False
         elif e.data[u'message'] == u'Repository access blocked':
             print "Github Exception: ", e.data[u'block']
             return [], False
