@@ -1,0 +1,36 @@
+
+
+/* ==========================================================================
+   Author's custom styles
+   ========================================================================== */
+
+
+.edge {
+  stroke-width: 1;
+  stroke: #888;
+  stroke-opacity: 0.5;
+}
+
+.selected-repo-node {
+  fill: rgb(36,255,36);
+}
+
+.related-repo-node {
+  fill: rgb(205,109,182);
+}
+
+.owner-repo-node {
+  fill: rgb(0,109,219);
+}
+
+.same-owner {
+  font-weight: bold;
+}
+
+.other-owner {
+}
+
+.select2-container--classic .select2-results > .select2-results__options {
+  max-height: 500px;
+  overflow-y: auto;
+}
