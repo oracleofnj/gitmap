@@ -122,7 +122,7 @@ def repo_to_repo_links(links, contrib_prob=0.33333):
 
     return repo_to_repo, linkedrepos
 
-def calc_similarities(r2r, repos, initial_pref=0):
+def calc_similarities(r2r, repos, initial_pref=0, num_iters=10, damping=0.95):
     ig1 = itemgetter(1)
     selfsims = sorted([(repo, r2r[repo][repo]) for repo in r2r.keys()], key=ig1, reverse=True)
     selfsims_dict = {repo: selfsim for (repo, selfsim) in selfsims}
@@ -130,36 +130,53 @@ def calc_similarities(r2r, repos, initial_pref=0):
     ordered_repos = [repo for (repo, sg, ss) in starred_repos]
     starcounts_dict = {repo: sg for (repo, sg, ss) in starred_repos}
 
-    # Ignore this for now, just use zero
-    # self_affinities = {repo: math.log(starcounts_dict[repo]/100) * r2r[repo][repo] for repo in ordered_repos}
-
-    # This might be backwards... or need to use starcounts[point] instead of starcounts[exemplar]
     sim = {}
     for (exemplar, points) in r2r.iteritems():
         for (point, weight) in points.iteritems():
             if point not in sim:
                 sim[point] = {}
-            sim[point][exemplar] = math.log(starcounts_dict[exemplar]/100) * weight if point != exemplar else initial_pref
-
+            sim[point][exemplar] = weight if point != exemplar else initial_pref
+            ### math.log(starcounts_dict[exemplar]/100) * weight if point != exemplar else initial_pref
 
     avail = {exemplar: {point: 0 \
             for point in r2r[exemplar].keys()} for exemplar in ordered_repos}
 
-    for i in xrange(5):
+    oldresp, oldavail, damp = None, None, 1
+    for i in xrange(num_iters):
+        # todo: fix damping
+        resp = {}
+        for point in sim.keys():
+            avail_plus_sim = [(cand, avail[cand][point] + sim[point][cand]) \
+                                for cand in sim[point].keys()]
+            best, second_best = (None, 0), (None, 0)
+            for (cand, a_plus_s) in avail_plus_sim:
+                if a_plus_s > best[1]:
+                    second_best = best
+                    best = (cand, a_plus_s)
+                elif a_plus_s > second_best[1]:
+                    second_best = (cand, a_plus_s)
+                else:
+                    pass
 
-        resp = {point: {exemplar: sim[point][exemplar] - max([0] + \
-                            [avail[cand][point] + sim[point][cand] \
-                             for cand in sim[point].keys() if cand != exemplar]) \
-                for exemplar in sim[point].keys()} for point in sim.keys()}
+            resp[point] = {exemplar: \
+                            (oldresp[point][exemplar]*(1-damp) if oldresp != None else 0) + \
+                            (damp if oldresp != None else 1) * \
+                            (sim[point][exemplar] - \
+                            (best[1] if best[0] != exemplar else second_best[1]))\
+                            for exemplar in sim[point].keys()}
 
-        avail = {exemplar: {point: min(0, resp[exemplar][exemplar] + sum([
-                        max(0, resp[otherpoint][exemplar]) \
-                        for otherpoint in r2r[exemplar].keys() if otherpoint != point and otherpoint != exemplar \
-                    ])) if point != exemplar else sum([ \
-                        max(0, resp[otherpoint][exemplar]) \
-                        for otherpoint in r2r[exemplar].keys() if otherpoint != exemplar \
-                    ])\
-                for point in r2r[exemplar].keys()} for exemplar in ordered_repos}
+        avail = {}
+        for exemplar in ordered_repos:
+            positive_resps = sum([max(0, resp[otherpoint][exemplar]) for otherpoint in r2r[exemplar].keys()])
+            avail[exemplar] = {point: \
+                                (oldavail[exemplar][point]*(1-damp) if oldavail != None else 0) + \
+                                (damp if oldavail != None else 1) * \
+                (min(0, resp[exemplar][exemplar] + positive_resps - max(0, resp[point][exemplar]) - max(0, resp[exemplar][exemplar])) \
+                    if point != exemplar else \
+                (positive_resps - max(0, resp[exemplar][exemplar]))) \
+                for point in r2r[exemplar].keys()}
+
+        oldresp, oldavail, damp = resp, avail, damp * damping
 
     return resp, avail
 
@@ -185,7 +202,10 @@ if __name__ == "__main__":
     data_path = "./downloaded_data"
     repos, users = load_repos(data_path), load_users(data_path)
     links = calc_graph(repos, users)
+    r2r, linkedrepos = repo_to_repo_links(links)
     repo_ranks, user_ranks = calc_gitrank_graph(links)
+    # resp, avail = s.calc_similarities(r2r, repos, -1, 20)
+    # ex9, ch9 = s.gen_exemplars(resp, avail)
     for (i, (user, rank_and_sources)) in enumerate(it.islice(user_ranks.iteritems(), 100)):
         print "{0:4} {1}".format(i+1, userToString(user, rank_and_sources))
     for (i, (repo, rank)) in enumerate(it.islice(repo_ranks.iteritems(), 100)):
