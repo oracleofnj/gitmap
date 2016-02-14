@@ -3,6 +3,7 @@ import itertools as it
 from collections import OrderedDict
 import json
 import gzip
+import math
 from operator import itemgetter
 
 bots = set(["gitter-badger", "ReadmeCritic", "invalid-email-address", "bitdeli-chef",
@@ -120,6 +121,58 @@ def repo_to_repo_links(links, contrib_prob=0.33333):
                           key = lambda x: -x[2]-x[3])
 
     return repo_to_repo, linkedrepos
+
+def calc_similarities(r2r, repos, initial_pref=0):
+    ig1 = itemgetter(1)
+    selfsims = sorted([(repo, r2r[repo][repo]) for repo in r2r.keys()], key=ig1, reverse=True)
+    selfsims_dict = {repo: selfsim for (repo, selfsim) in selfsims}
+    starred_repos = sorted([(repo, repos[repo]["stargazers_count"], selfsims_dict[repo]) for repo in selfsims_dict.keys()], key=ig1, reverse=True)
+    ordered_repos = [repo for (repo, sg, ss) in starred_repos]
+    starcounts_dict = {repo: sg for (repo, sg, ss) in starred_repos}
+
+    # Ignore this for now, just use zero
+    # self_affinities = {repo: math.log(starcounts_dict[repo]/100) * r2r[repo][repo] for repo in ordered_repos}
+
+    # This might be backwards... or need to use starcounts[point] instead of starcounts[exemplar]
+    sim = {}
+    for (exemplar, points) in r2r.iteritems():
+        for (point, weight) in points.iteritems():
+            if point not in sim:
+                sim[point] = {}
+            sim[point][exemplar] = math.log(starcounts_dict[exemplar]/100) * weight if point != exemplar else initial_pref
+
+
+    avail = {exemplar: {point: 0 \
+            for point in r2r[exemplar].keys()} for exemplar in ordered_repos}
+
+    for i in xrange(5):
+
+        resp = {point: {exemplar: sim[point][exemplar] - max([0] + \
+                            [avail[cand][point] + sim[point][cand] \
+                             for cand in sim[point].keys() if cand != exemplar]) \
+                for exemplar in sim[point].keys()} for point in sim.keys()}
+
+        avail = {exemplar: {point: min(0, resp[exemplar][exemplar] + sum([
+                        max(0, resp[otherpoint][exemplar]) \
+                        for otherpoint in r2r[exemplar].keys() if otherpoint != point and otherpoint != exemplar \
+                    ])) if point != exemplar else sum([ \
+                        max(0, resp[otherpoint][exemplar]) \
+                        for otherpoint in r2r[exemplar].keys() if otherpoint != exemplar \
+                    ])\
+                for point in r2r[exemplar].keys()} for exemplar in ordered_repos}
+
+    return resp, avail
+
+def gen_exemplars(resp, avail):
+    exemplars = {point: max(resp[point].keys(), key=lambda exemplar: resp[point][exemplar] + avail[exemplar][point]) \
+                for point in resp.keys()}
+    children = {}
+    for (point, exemplar) in exemplars.items():
+        if exemplar not in children:
+            children[exemplar] = []
+        children[exemplar].append(point)
+
+    return exemplars, children
 
 def userToString(user, rank_and_sources):
     return "{0:8.4f} {1:32} Top 3 Sources: {2}".format(1e6*rank_and_sources[0], user,

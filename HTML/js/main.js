@@ -44,7 +44,7 @@ $(document).ready(function () {
   var y = d3.scale.linear().range([height, 0]);
 
   var preventClick = false;
-  var zoomScale = 1, zoomTranslate = [0,0], oldZoomScale = 1, oldZoomTranslate = [0,0];
+  var zoomScale = 1, zoomTranslate = [0,0], oldZoomScale = 2, oldZoomTranslate = [0,0];
 
   var zoom = d3.behavior.zoom()
     .scaleExtent([1, 10])
@@ -190,6 +190,8 @@ $(document).ready(function () {
       .attr("r", 2.0/Math.sqrt(zoomScale));
     container.selectAll(".edge")
       .style("stroke-width", 1.0/Math.sqrt(zoomScale));
+    container.selectAll(".starred-repo")
+      .style("stroke-width", 1.0/Math.sqrt(zoomScale));
     if (zoomChangedEnough(0.02, 3)) { // drag detected
       preventClick = true;
     }
@@ -211,10 +213,11 @@ $(document).ready(function () {
           top_stars[km.assignments[repo]] = repo;
         }
       });
-      container.selectAll(".star").remove();
-      container.selectAll(".star").data(top_stars.filter(function(x) {return true;})) // skip array holes
+      container.selectAll(".starred-repo").remove();
+      container.selectAll(".starred-repo").data(top_stars.filter(function(x) {return true;})) // skip array holes
         .enter().append("svg:polygon")
-        .attr("class", "star")
+        .attr("class", "starred-repo")
+        .style("stroke-width", 1.0/Math.sqrt(zoomScale))
         .attr("points", function(repo) {return starPoints(x(nodeDict[repo].x), y(nodeDict[repo].y), 5, 10.0/Math.sqrt(zoomScale), 5.0/Math.sqrt(zoomScale));});
     }
     oldZoomScale = zoomScale;
@@ -222,55 +225,56 @@ $(document).ready(function () {
     preventClick = false;
   }
 
-  d3.json("data/starcounts.json", function(error, stardata) {
-    if (error) throw error;
-    starcounts = stardata;
-  });
+  d3_queue.queue(2)
+    .defer(d3.json, "data/starcounts.json")
+    .defer(d3.json, "data/gephi_output.json")
+    .awaitAll(function(error, results) {
+      if (error) throw error;
+      starcounts = results[0];
+      gephi = results[1];
+      nodeDict = gephi.nodes;
+      var nodeList = Object.keys(gephi.nodes).sort();
 
-  d3.json("data/gephi_output.json", function(error, gephi) {
-    if (error) throw error;
+      nodes = nodeList.map(function(repo) {
+        edgesPerNode[repo] = [];
+        return {"repo": repo, "x": gephi.nodes[repo].x, "y": gephi.nodes[repo].y};
+      });
+      edges = gephi.edges;
+      edges.forEach(function(edge) {
+        edgeInfo = {
+          "x1": gephi.nodes[edge.source].x,
+          "y1": gephi.nodes[edge.source].y,
+          "x2": gephi.nodes[edge.target].x,
+          "y2": gephi.nodes[edge.target].y
+        }
+        edgesPerNode[edge.source].push({"otherRepo": edge.target, "edgeInfo": edgeInfo});
+        edgesPerNode[edge.target].push({"otherRepo": edge.source, "edgeInfo": edgeInfo});
+      });
+      $("#selected-repo").select2({
+        theme: "classic",
+        placeholder: "Type or click on the map to select a repository...",
+        allowClear: true,
+        data: nodeList
+      });
+      $("#selected-repo-placeholder").addClass("hidden");
+      $("#selected-repo").removeClass("hidden");
 
-    nodeDict = gephi.nodes;
-    var nodeList = Object.keys(gephi.nodes).sort();
+      x.domain(d3.extent(nodes, function(d) { return d.x; }));
+      y.domain(d3.extent(nodes, function(d) { return d.y; }));
 
-    nodes = nodeList.map(function(repo) {
-      edgesPerNode[repo] = [];
-      return {"repo": repo, "x": gephi.nodes[repo].x, "y": gephi.nodes[repo].y};
-    });
-    edges = gephi.edges;
-    edges.forEach(function(edge) {
-      edgeInfo = {
-        "x1": gephi.nodes[edge.source].x,
-        "y1": gephi.nodes[edge.source].y,
-        "x2": gephi.nodes[edge.target].x,
-        "y2": gephi.nodes[edge.target].y
-      }
-      edgesPerNode[edge.source].push({"otherRepo": edge.target, "edgeInfo": edgeInfo});
-      edgesPerNode[edge.target].push({"otherRepo": edge.source, "edgeInfo": edgeInfo});
-    });
-    $("#selected-repo").select2({
-      theme: "classic",
-      placeholder: "Type or click on the map to select a repository...",
-      allowClear: true,
-      data: nodeList
-    });
-    $("#selected-repo-placeholder").addClass("hidden");
-    $("#selected-repo").removeClass("hidden");
+      qt = d3.geom.quadtree(nodes.map(function(repo) {
+        return {"repo": repo.repo, "x": x(repo.x), "y": y(repo.y)};
+      }));
 
-    x.domain(d3.extent(nodes, function(d) { return d.x; }));
-    y.domain(d3.extent(nodes, function(d) { return d.y; }));
+      container.selectAll(".dot")
+        .data(nodes, function(node) {return node.repo;})
+        .enter().append("circle")
+        .attr("class", "dot")
+        .attr("r", 2)
+        .attr("cx", function(d) { return x(d.x); })
+        .attr("cy", function(d) { return y(d.y); });
 
-    qt = d3.geom.quadtree(nodes.map(function(repo) {
-      return {"repo": repo.repo, "x": x(repo.x), "y": y(repo.y)};
-    }));
-
-    container.selectAll(".dot")
-      .data(nodes, function(node) {return node.repo;})
-      .enter().append("circle")
-      .attr("class", "dot")
-      .attr("r", 2)
-      .attr("cx", function(d) { return x(d.x); })
-      .attr("cy", function(d) { return y(d.y); });
+      recluster();
   });
   $("#selected-repo").on("change", function() {selectRepo($("#selected-repo").val());});
 });

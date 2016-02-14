@@ -30,6 +30,11 @@
 .other-owner {
 }
 
+.starred-repo {
+  fill: rgb(255,0,0);
+  stroke: rgb(0,0,0);
+}
+
 .select2-container--classic .select2-results > .select2-results__options {
   max-height: 500px;
   overflow-y: auto;
