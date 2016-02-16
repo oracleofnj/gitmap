@@ -202,11 +202,25 @@ if __name__ == "__main__":
     data_path = "./downloaded_data"
     repos, users = load_repos(data_path), load_users(data_path)
     links = calc_graph(repos, users)
+    # repo_ranks, user_ranks = calc_gitrank_graph(links)
+    # for (i, (user, rank_and_sources)) in enumerate(it.islice(user_ranks.iteritems(), 100)):
+    #    print "{0:4} {1}".format(i+1, userToString(user, rank_and_sources))
+    # for (i, (repo, rank)) in enumerate(it.islice(repo_ranks.iteritems(), 100)):
+    #    print "{0:4} {1}".format(i+1, repoToString(repo, rank))
+
     r2r, linkedrepos = repo_to_repo_links(links)
-    repo_ranks, user_ranks = calc_gitrank_graph(links)
-    # resp, avail = s.calc_similarities(r2r, repos, -1, 20)
-    # ex9, ch9 = s.gen_exemplars(resp, avail)
-    for (i, (user, rank_and_sources)) in enumerate(it.islice(user_ranks.iteritems(), 100)):
-        print "{0:4} {1}".format(i+1, userToString(user, rank_and_sources))
-    for (i, (repo, rank)) in enumerate(it.islice(repo_ranks.iteritems(), 100)):
-        print "{0:4} {1}".format(i+1, repoToString(repo, rank))
+    resp, avail = calc_similarities(r2r, repos, 0, 20)
+    ex, ch = gen_exemplars(resp, avail)
+
+    lowest = [x for x in ch if x in ch[x]]
+    r2r_lowest = {r1: {r2: r2r[r1][r2] for r2 in r2r[r1].keys() if r2 in lowest} for r1 in r2r.keys() if r1 in lowest}
+    resp, avail = calc_similarities(r2r_lowest, repos, 0, 30, 0.97)
+    ex2, ch2 = gen_exemplars(resp, avail)
+
+    midlevel = [x for x in ch2 if x in ch2[x]]
+    r2r_midlevel = {r1: {r2: r2r_lowest[r1][r2] for r2 in r2r_lowest[r1].keys() if r2 in midlevel} for r1 in r2r_lowest.keys() if r1 in midlevel}
+    resp, avail = calc_similarities(r2r_midlevel, repos, 0, 50, 0.99)
+    ex3, ch3 = gen_exemplars(resp, avail)
+
+    gitmap = {root: {grandpa: {dad: sorted(ch[dad]) for dad in ch2[grandpa]} for grandpa in ch3[root]} for root in ch3.keys()}
+    print json.dumps(gitmap, indent=4, sort_keys=True)

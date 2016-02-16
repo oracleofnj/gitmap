@@ -1,0 +1,169 @@
+
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+<!-- Latest compiled and minified JavaScript -->
+<style>
+
+.node {
+  cursor: pointer;
+}
+
+.node:hover {
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.node--leaf {
+  fill: white;
+}
+
+.label {
+  font: 11px "Helvetica Neue", Helvetica, Arial, sans-serif;
+  text-anchor: middle;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
+}
+
+.label,
+.node--root {
+  pointer-events: none;
+}
+
+</style>
+<body>
+  <!-- jQuery -->
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<!-- Latest compiled and minified CSS -->
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var margin = 20,
+    diameter = 960;
+
+var color = d3.scale.linear()
+    .domain([-1, 5])
+    .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
+    .interpolate(d3.interpolateHcl);
+
+var pack = d3.layout.pack()
+    .padding(2)
+    .size([diameter - margin, diameter - margin])
+    .value(function(d) { return d.value; })
+
+var svg = d3.select("body").append("svg")
+    .attr("width", diameter)
+    .attr("height", diameter)
+  .append("g")
+    .attr("transform", "translate(" + diameter / 2 + "," + diameter / 2 + ")");
+
+d3.json("data/gitmap_d3.json", function(error, root) {
+  if (error) throw error;
+
+  var focus = root,
+      nodes = pack.nodes(root),
+      view;
+
+  function countChildren(node) {
+    if (!node.children) {
+      return node.value;
+    } else {
+      return node.children.map(countChildren).reduce(function(a,b) {return a+b;});
+    }
+  }
+
+  function tooltipText(node) {
+    var res = [node.name];
+    if (!node.children) {
+      return res;
+    }
+    var totalChildren = countChildren(node);
+    var otherChildCounts = node.children
+      .filter(function(child) {return child.name != node.name;})
+      .map(function(x) {return [x.name, countChildren(x)];})
+      .sort(function(a, b) {return b[1] - a[1]})
+      .slice(0,2);
+    res = res.concat(otherChildCounts.map(function(x) {return x[0];}));
+    if (totalChildren > res.length) {
+      res.push("...and " + (totalChildren - res.length) + " more");
+    }
+    return res;
+  }
+
+  var circle = svg.selectAll("circle")
+      .data(nodes)
+    .enter().append("circle")
+      .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
+      .attr("id", function(d) {return "level-" + d.depth + "-" + d.name.replace(/\W+/g,"_");})
+      .style("fill", function(d) { return d.children ? color(d.depth) : null; })
+      .on("click", function(d) { if (focus !== d) zoom(d), d3.event.stopPropagation(); })
+      .on("mouseover", function(d) {
+        var element = d3.select("#level-" + d.depth + "-" + d.name.replace(/\W+/g,"_"));
+        tooltip.selectAll("*").remove();
+        tooltipText(d).forEach(function(tooltipLine, ix) {
+          var tspan = tooltip.append("tspan").attr("x","0").text(tooltipLine);
+          if (ix > 0) {
+            tspan.attr("dy", "1.2em");
+          }
+        });
+        tooltip.attr("class", "");
+        tooltip
+          .attr("transform", function(d) { return "translate(" + (parseFloat(element.attr("data-x")) - this.getBBox().width / 2)
+                                                  + "," + (parseFloat(element.attr("data-y")) - parseFloat(element.attr("r")) - this.getBBox().height) + ")"; });
+      })
+      .on("mouseout", function(d) {tooltip.attr("class", "hidden").selectAll("*").remove();});
+
+  var tooltipBackground = svg.append("rect")
+    .attr("class", "hidden");
+  var tooltip = svg.append("text")
+    .attr("id", "tooltip")
+    .attr("class", "hidden");
+
+  // var text = svg.selectAll("text")
+  //      .data(nodes)
+  //   .enter().append("text")
+  //     .attr("class", "label")
+  //     .style("fill-opacity", function(d) { return d.parent === root ? 1 : 0; })
+  //     .style("display", function(d) { return d.parent === root ? "inline" : "none"; })
+  //     .text();
+  //
+  var node = svg.selectAll("circle");
+
+  d3.select("body")
+      .style("background", color(-1))
+      .on("click", function() { zoom(root); });
+
+  zoomTo([root.x, root.y, root.r * 2 + margin]);
+
+  function zoom(d) {
+    var focus0 = focus; focus = d;
+
+    var transition = d3.transition()
+        .duration(d3.event.altKey ? 7500 : 750)
+        .tween("zoom", function(d) {
+          var i = d3.interpolateZoom(view, [focus.x, focus.y, focus.r * 2 + margin]);
+          return function(t) { zoomTo(i(t)); };
+        });
+
+    tooltip.attr("class","hidden");
+
+    // transition.selectAll("text")
+    //   .filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
+    //     .style("fill-opacity", function(d) { return d.parent === focus ? 1 : 0; })
+    //     .each("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
+    //     .each("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
+  }
+
+  function zoomTo(v) {
+    var k = diameter / v[2]; view = v;
+    node.attr("transform", function(d) { return "translate(" + (d.x - v[0]) * k + "," + (d.y - v[1]) * k + ")"; });
+    circle
+      .attr("r", function(d) { return d.r * k; })
+      .attr("data-x", function(d) {return (d.x - v[0]) * k;})
+      .attr("data-y", function(d) {return (d.y - v[1]) * k;});
+  }
+});
+
+d3.select(self.frameElement).style("height", diameter + "px");
+
+</script>
