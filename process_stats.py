@@ -198,16 +198,22 @@ def userToString(user, rank_and_sources):
 def repoToString(repo, rank):
     return "{0:8.4f} {1:64}".format(1e6*rank, repo)
 
+def collapseTreeNode(node):
+    if "children" in node:
+        for child in node["children"]:
+            collapseTreeNode(child)
+        if len(node["children"]) == 1:
+            if node["name"] != node["children"][0]["name"]:
+                raise ValueError("Expected " + node["name"] + " to equal " + node["children"][0]["name"])
+            elif "children" not in node["children"][0]:
+                del node["children"]
+            else:
+                node["children"] = node["children"][0]["children"]
+
 if __name__ == "__main__":
     data_path = "./downloaded_data"
     repos, users = load_repos(data_path), load_users(data_path)
     links = calc_graph(repos, users)
-    # repo_ranks, user_ranks = calc_gitrank_graph(links)
-    # for (i, (user, rank_and_sources)) in enumerate(it.islice(user_ranks.iteritems(), 100)):
-    #    print "{0:4} {1}".format(i+1, userToString(user, rank_and_sources))
-    # for (i, (repo, rank)) in enumerate(it.islice(repo_ranks.iteritems(), 100)):
-    #    print "{0:4} {1}".format(i+1, repoToString(repo, rank))
-
     r2r, linkedrepos = repo_to_repo_links(links)
     resp, avail = calc_similarities(r2r, repos, 0, 20)
     ex, ch = gen_exemplars(resp, avail)
@@ -222,5 +228,24 @@ if __name__ == "__main__":
     resp, avail = calc_similarities(r2r_midlevel, repos, 0, 50, 0.99)
     ex3, ch3 = gen_exemplars(resp, avail)
 
-    gitmap = {root: {grandpa: {dad: sorted(ch[dad]) for dad in ch2[grandpa]} for grandpa in ch3[root]} for root in ch3.keys()}
-    print json.dumps(gitmap, indent=4, sort_keys=True)
+    d3_gitmap = {"name": "github", "children": [ \
+                    {"name": root, "children": [ \
+                        {"name": grandpa, "children": [ \
+                            {"name": dad, "children": \
+                                [{"name": child} \
+                                for child in sorted(ch[dad])]} \
+                            for dad in sorted(ch2[grandpa])]} \
+                        for grandpa in sorted(ch3[root])]} \
+                    for root in sorted(ch3.keys())]}
+    collapseTreeNode(d3_gitmap)
+    with open("compressed_gitmap.json", "w") as f:
+        f.write(json.dumps(d3_gitmap, indent=2))
+
+
+    # repo_ranks, user_ranks = calc_gitrank_graph(links)
+    # for (i, (user, rank_and_sources)) in enumerate(it.islice(user_ranks.iteritems(), 100)):
+    #    print "{0:4} {1}".format(i+1, userToString(user, rank_and_sources))
+    # for (i, (repo, rank)) in enumerate(it.islice(repo_ranks.iteritems(), 100)):
+    #    print "{0:4} {1}".format(i+1, repoToString(repo, rank))
+    # gitmap = {root: {grandpa: {dad: sorted(ch[dad]) for dad in ch2[grandpa]} for grandpa in ch3[root]} for root in ch3.keys()}
+    # print json.dumps(gitmap, indent=4, sort_keys=True)

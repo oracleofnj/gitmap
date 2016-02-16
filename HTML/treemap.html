@@ -24,6 +24,16 @@
   text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff;
 }
 
+.tooltipBackground {
+  fill: #FFFFFF;
+  stroke-width: 3;
+  stroke: #7F7F7F;
+}
+
+.tooltipTriangle {
+  fill: #7F7F7F;
+}
+
 .label,
 .node--root {
   pointer-events: none;
@@ -38,8 +48,8 @@
 <script src="https://d3js.org/d3.v3.min.js"></script>
 <script>
 
-var margin = 20,
-    diameter = 960;
+var margin = 100,
+    diameter = 1200;
 
 var color = d3.scale.linear()
     .domain([-1, 5])
@@ -49,7 +59,7 @@ var color = d3.scale.linear()
 var pack = d3.layout.pack()
     .padding(2)
     .size([diameter - margin, diameter - margin])
-    .value(function(d) { return d.value; })
+    .value(function() {return 1;});
 
 var svg = d3.select("body").append("svg")
     .attr("width", diameter)
@@ -57,7 +67,7 @@ var svg = d3.select("body").append("svg")
   .append("g")
     .attr("transform", "translate(" + diameter / 2 + "," + diameter / 2 + ")");
 
-d3.json("data/gitmap_d3.json", function(error, root) {
+d3.json("data/compressed_gitmap.json", function(error, root) {
   if (error) throw error;
 
   var focus = root,
@@ -66,9 +76,9 @@ d3.json("data/gitmap_d3.json", function(error, root) {
 
   function countChildren(node) {
     if (!node.children) {
-      return node.value;
+      return 1;
     } else {
-      return node.children.map(countChildren).reduce(function(a,b) {return a+b;});
+      return node.children.map(countChildren).reduce(function(a,b) {return a+b;},0);
     }
   }
 
@@ -90,7 +100,9 @@ d3.json("data/gitmap_d3.json", function(error, root) {
     return res;
   }
 
-  var circle = svg.selectAll("circle")
+  var circle = svg
+    .append("g")
+    .selectAll("circle")
       .data(nodes)
     .enter().append("circle")
       .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
@@ -101,32 +113,44 @@ d3.json("data/gitmap_d3.json", function(error, root) {
         var element = d3.select("#level-" + d.depth + "-" + d.name.replace(/\W+/g,"_"));
         tooltip.selectAll("*").remove();
         tooltipText(d).forEach(function(tooltipLine, ix) {
-          var tspan = tooltip.append("tspan").attr("x","0").text(tooltipLine);
-          if (ix > 0) {
-            tspan.attr("dy", "1.2em");
-          }
+          var tspan = tooltip.append("tspan").attr("x","0").text(tooltipLine).attr("dy", "1.2em");
         });
-        tooltip.attr("class", "");
+
+        tooltipG
+          .attr("class", "")
+          .attr("transform", function(d) {return "translate(" + element.attr("data-x")
+                                          + "," + (parseFloat(element.attr("data-y")) - parseFloat(element.attr("r"))) + ")"; });
+
+        var textRect = tooltip[0][0].getBBox();
+
         tooltip
-          .attr("transform", function(d) { return "translate(" + (parseFloat(element.attr("data-x")) - this.getBBox().width / 2)
-                                                  + "," + (parseFloat(element.attr("data-y")) - parseFloat(element.attr("r")) - this.getBBox().height) + ")"; });
+          .attr("y", -textRect.height-20)
+          .selectAll("tspan")
+          .attr("x", -textRect.width / 2);
+
+        tooltipBackground
+          .attr("width", textRect.width+10)
+          .attr("height", textRect.height+10)
+          .attr("x", textRect.x - textRect.width/2 - 5)
+          .attr("y", -textRect.height-20);
+
       })
-      .on("mouseout", function(d) {tooltip.attr("class", "hidden").selectAll("*").remove();});
+      .on("mouseout", function(d) {
+        tooltipG.attr("class", "hidden");
+      });
 
-  var tooltipBackground = svg.append("rect")
-    .attr("class", "hidden");
-  var tooltip = svg.append("text")
-    .attr("id", "tooltip")
+  var tooltipG = svg.append("g")
     .attr("class", "hidden");
 
-  // var text = svg.selectAll("text")
-  //      .data(nodes)
-  //   .enter().append("text")
-  //     .attr("class", "label")
-  //     .style("fill-opacity", function(d) { return d.parent === root ? 1 : 0; })
-  //     .style("display", function(d) { return d.parent === root ? "inline" : "none"; })
-  //     .text();
-  //
+  var tooltipBackground = tooltipG.append("rect")
+    .attr("class", "tooltipBackground")
+    .attr("rx", 5)
+    .attr("ry", 5);
+  var tooltipTriangle = tooltipG.append("polygon")
+    .attr("points", "-10,-10 10,-10 0,-3")
+    .attr("class", "tooltipTriangle");
+  var tooltip = tooltipG.append("text");
+
   var node = svg.selectAll("circle");
 
   d3.select("body")
@@ -145,13 +169,7 @@ d3.json("data/gitmap_d3.json", function(error, root) {
           return function(t) { zoomTo(i(t)); };
         });
 
-    tooltip.attr("class","hidden");
-
-    // transition.selectAll("text")
-    //   .filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
-    //     .style("fill-opacity", function(d) { return d.parent === focus ? 1 : 0; })
-    //     .each("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
-    //     .each("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
+    tooltipG.attr("class","hidden");
   }
 
   function zoomTo(v) {
