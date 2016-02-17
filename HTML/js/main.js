@@ -80,8 +80,8 @@ var theApp = (function() {
 
     function addInnerMap(d) {
       var newRoot = root;
-      for (var i=level; i < d.depth; i++) {
-        newRoot = newRoot.children[d.breadcrumbs[i]];
+      for (var i=level; i < d.depth+level-1; i++) {
+        newRoot = newRoot.children.filter(function(x) {return x.name === d.breadcrumbs[i];})[0];
       }
       // find the array element whose name is the name we want
       createTreeMap(newRoot.children.filter(function(x) {return x.name === d.name;})[0], d.depth+level);
