@@ -38,6 +38,19 @@
   pointer-events: none;
 }
 
+.closebuttonx {
+  stroke: #000000;
+  stroke-width: 2;
+}
+
+.closebuttoncircle {
+  fill: #000000;
+  fill-opacity: 0;
+  stroke: #000000;
+  stroke-width: 2;
+}
+
+
 .select2-container--classic .select2-results > .select2-results__options {
   max-height: 500px;
   overflow-y: auto;

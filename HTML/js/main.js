@@ -135,15 +135,29 @@ var theApp = (function() {
     if (level > 1) {
       var closeButtonG = innerSVG.append("g")
         .attr("class", "closebuttongroup")
-        .attr("transform", "translate(" + (diameter - diameter*0.02) + "," + (diameter*0.02) + ")");
+        .attr("transform", "translate(" + (diameter - diameter*0.1) + "," + (diameter*0.1) + ")");
 
-      var closeButtonCircle = closeButtonG.append("circle")
+      closeButtonG.append("line")
+        .attr("class", "closebuttonx")
+        .attr("x1", diameter * 0.03 * (1 - Math.sqrt(2)/2))
+        .attr("y1", diameter * 0.03 * (1 - Math.sqrt(2)/2))
+        .attr("x2", diameter * 0.03 * (1 + Math.sqrt(2)/2))
+        .attr("y2", diameter * 0.03 * (1 + Math.sqrt(2)/2));
+
+      closeButtonG.append("line")
+        .attr("class", "closebuttonx")
+        .attr("x1", diameter * 0.03 * (1 - Math.sqrt(2)/2))
+        .attr("y1", diameter * 0.03 * (1 + Math.sqrt(2)/2))
+        .attr("x2", diameter * 0.03 * (1 + Math.sqrt(2)/2))
+        .attr("y2", diameter * 0.03 * (1 - Math.sqrt(2)/2));
+
+      closeButtonG.append("circle")
         .attr("class", "closebuttoncircle")
-        .style("fill", "#000000")
-        .attr("cx", diameter * 0.01)
-        .attr("cy", diameter * 0.01)
-        .attr("r", diameter * 0.01)
+        .attr("cx", diameter * 0.03)
+        .attr("cy", diameter * 0.03)
+        .attr("r", diameter * 0.03)
         .on("click", function() {innerSVG.remove();});
+
     }
   }
 
