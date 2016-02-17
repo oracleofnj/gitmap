@@ -11,28 +11,31 @@
   stroke-opacity: 0.5;
 }
 
-.selected-repo-node {
-  fill: rgb(36,255,36);
+.node {
+  cursor: pointer;
 }
 
-.related-repo-node {
-  fill: rgb(205,109,182);
+.node:hover {
+  stroke: #000;
+  stroke-width: 1.5px;
 }
 
-.owner-repo-node {
-  fill: rgb(0,109,219);
+.node--leaf {
+  fill: white;
 }
 
-.same-owner {
-  font-weight: bold;
+.tooltipBackground {
+  fill: #FFFFFF;
+  stroke-width: 3;
+  stroke: #7F7F7F;
 }
 
-.other-owner {
+.tooltipTriangle {
+  fill: #7F7F7F;
 }
 
-.starred-repo {
-  fill: rgb(255,0,0);
-  stroke: rgb(0,0,0);
+.node--root {
+  pointer-events: none;
 }
 
 .select2-container--classic .select2-results > .select2-results__options {

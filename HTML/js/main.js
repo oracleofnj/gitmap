@@ -1,280 +1,286 @@
-var qt;
+var theApp = (function() {
+  var outerSVG = d3.select("#treemap");
+  outerSVG.style("height", outerSVG.style("width")); // make square
 
-function getIncludedNodes(quadtree, x0, y0, x3, y3) {
-  var pts = [];
-  quadtree.visit(function (node, x1, y1, x2, y2) {
-    var p = node.point;
-    if ((p) && (p.x >= x0) && (p.x < x3) && (p.y >= y0) && (p.y < y3)) {
-        pts.push(node.point);
-    }
-    return x1 >= x3 || y1 >= y3 || x2 < x0 || y2 < y0;
-  });
-  return pts;
-}
-
-function starPoints(centerX, centerY, arms, outerRadius, innerRadius) {
-  // Thanks to https://dillieodigital.wordpress.com/2013/01/16/quick-tip-how-to-draw-a-star-with-svg-and-javascript/
-  // via http://stackoverflow.com/questions/2710065/drawing-star-shapes-with-variable-parameters
-  var results = "", angle = Math.PI / arms;
-  for (var i = 0; i < 2 * arms; i++) {
-    // Use outer or inner radius depending on what iteration we are in.
-    var r = (i & 1) == 0 ? outerRadius : innerRadius;
-    var currX = centerX + Math.cos(i * angle - Math.PI / 2) * r; // Start at -pi/2 to make first point
-    var currY = centerY + Math.sin(i * angle - Math.PI / 2) * r; // at the top of the star - negative because top of screen = lowest number
-
-    // Our first time we simply append the coordinates, subsequet times
-    // we append a ", " to distinguish each coordinate pair.
-    if (i == 0) {
-       results = currX + "," + currY;
+  function countChildren(node) {
+    if (!node.children) {
+      return 1;
     } else {
-       results += ", " + currX + "," + currY;
+      return node.children.map(countChildren).reduce(function(a,b) {return a+b;},0);
     }
   }
-  return results;
-}
+
+  function tooltipText(node) {
+    var res = [node.name];
+    if (!node.children) {
+      return res;
+    }
+    var totalChildren = countChildren(node);
+    var otherChildCounts = node.children
+      .filter(function(child) {return child.name != node.name;})
+      .map(function(x) {return [x.name, countChildren(x)];})
+      .sort(function(a, b) {return b[1] - a[1]})
+      .slice(0,2);
+    res = res.concat(otherChildCounts.map(function(x) {return x[0];}));
+    if (totalChildren > res.length) {
+      res.push("...and " + (totalChildren - res.length) + " more");
+    }
+    return res;
+  }
+
+  function getAllChildren(node) {
+    if (!node.children) {
+      return [node.name];
+    } else {
+      return node.children.map(getAllChildren).reduce(function(a,b) {return a.concat(b);}, []);
+    }
+  }
+
+  function addBreadCrumbs(node, trail) {
+    node.breadcrumbs = trail;
+    if (node.children) {
+      node.children.forEach(function(x) {addBreadCrumbs(x,trail.concat([node.name]));});
+    }
+  }
+
+  function createTreeMap(root, level) {
+
+    function showToolTip(d) {
+      var element = innerSVG.select("#level-" + level + "-depth-" + d.depth + "-" + d.name.replace(/\W+/g,"_"));
+
+      tooltip.selectAll("tspan").remove();
+      tooltip.selectAll("tspan")
+        .data(tooltipText(d))
+        .enter().append("tspan")
+        .text(function(tooltipLine) {return tooltipLine;})
+        .attr("x","0") // this will be overwritten below once we know how wide the box is
+        .attr("dy", "1.2em");
+
+      tooltipG
+        .attr("class", "tooltipgroup") //unhide
+        .attr("transform", "translate(" + d.x + "," + (d.y - d.r) + ")");
+
+      var textRect = tooltip[0][0].getBBox();
+
+      tooltip
+        .attr("y", -textRect.height-20)
+        .selectAll("tspan")
+        .attr("x", -textRect.width / 2);
+
+      tooltipBackground
+        .attr("width", textRect.width+10)
+        .attr("height", textRect.height+10)
+        .attr("x", textRect.x - textRect.width/2 - 5)
+        .attr("y", -textRect.height-20);
+    }
+
+    function hideToolTip(d) {
+      tooltipG.attr("class", "tooltipgroup hidden")
+    }
+
+    function addInnerMap(d) {
+      var newRoot = root;
+      for (var i=level; i < d.depth; i++) {
+        newRoot = newRoot.children[d.breadcrumbs[i]];
+      }
+      // find the array element whose name is the name we want
+      createTreeMap(newRoot.children.filter(function(x) {return x.name === d.name;})[0], d.depth+level);
+    }
+
+    var containerWidth = parseFloat(outerSVG.style("width"));
+    var margin=(1-Math.pow(0.95,level)) * containerWidth, diameter=containerWidth-2*margin;
+
+    var color = d3.scale.linear()
+        .domain([-1, 5])
+        .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
+        .interpolate(d3.interpolateHcl);
+
+    var pack = d3.layout.pack()
+        .padding(2)
+        .size([diameter, diameter])
+        .value(function() {return 1;});
+
+    var innerSVG = outerSVG.append("g")
+      .attr("transform","translate(" + margin + "," + margin + ")");
+
+    // d3 is going to mutate the object - make a deep copy before passing it in
+    var nodes = pack.nodes(JSON.parse(JSON.stringify(root)));
+
+    var circles = innerSVG.append("g")
+      .attr("class", "circle-container")
+      .selectAll("circle")
+        .data(nodes)
+      .enter().append("circle")
+        .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
+        .attr("id", function(d) {return "level-" + level + "-depth-" + d.depth + "-" + d.name.replace(/\W+/g,"_");})
+        .style("fill", function(d) { return d.children ? color(level + d.depth - 1) : null; })
+        .attr("r", function(d) {return d.r;})
+        .attr("cx", function(d) {return d.x;})
+        .attr("cy", function(d) {return d.y;})
+        .on("mouseover", showToolTip)
+        .on("mouseout", hideToolTip)
+        .on("click", addInnerMap);
+
+    var tooltipG = innerSVG.append("g")
+      .attr("class", "tooltipgroup hidden");
+    var tooltipBackground = tooltipG.append("rect")
+      .attr("class", "tooltipBackground")
+      .attr("rx", 5)
+      .attr("ry", 5);
+    var tooltipTriangle = tooltipG.append("polygon")
+      .attr("points", "-10,-10 10,-10 0,-3")
+      .attr("class", "tooltipTriangle");
+    var tooltip = tooltipG.append("text");
+
+    if (level > 1) {
+      var closeButtonG = innerSVG.append("g")
+        .attr("class", "closebuttongroup")
+        .attr("transform", "translate(" + (diameter - diameter*0.02) + "," + (diameter*0.02) + ")");
+
+      var closeButtonCircle = closeButtonG.append("circle")
+        .attr("class", "closebuttoncircle")
+        .style("fill", "#000000")
+        .attr("cx", diameter * 0.01)
+        .attr("cy", diameter * 0.01)
+        .attr("r", diameter * 0.01)
+        .on("click", function() {innerSVG.remove();});
+    }
+  }
+
+  return {
+    createTreeMap: createTreeMap,
+    getAllChildren: getAllChildren,
+    addBreadCrumbs: addBreadCrumbs,
+  };
+})();
+
+// function clickDot() {
+//   $("#selected-repo").val(qt.find(d3.mouse(container[0][0])).repo).trigger("change");
+// }
+//
+// function clickLink() {
+//   d3.event.preventDefault();
+//   $("#selected-repo").val(d3.select(this).text()).trigger("change");
+// }
+//
+// function selectRepo(selectedRepo) {
+//   container.selectAll(".edge").remove();
+//   d3.select("#related-repos").selectAll(".related-repo").remove();
+//
+//   if (!selectedRepo) {
+//     d3.selectAll(".dot")
+//       .attr("class", "dot")
+//       .attr("r", 2.0 / Math.sqrt(zoomScale));
+//     return;
+//   }
+//
+//   var owner = selectedRepo.split("/")[0];
+//   // TODO: refactor related repo stuff to make it more efficient and make radius class based
+//   var relatedRepos = edgesPerNode[selectedRepo].filter(function(x) {
+//     return x.otherRepo.split("/")[0] === owner;
+//   }).sort(function(a,b) {return (a.otherRepo > b.otherRepo) ? 1 : ((a.otherRepo < b.otherRepo) ? -1 : 0);})
+//   .concat(edgesPerNode[selectedRepo].filter(function(x) {
+//       return x.otherRepo.split("/")[0] !== owner;
+//   }).sort(function(a,b) {return (a.otherRepo > b.otherRepo) ? 1 : ((a.otherRepo < b.otherRepo) ? -1 : 0);}));
+//   container.selectAll(".edge")
+//     .data(relatedRepos, function(edge) {return selectedRepo + "<--->" + edge.otherRepo;})
+//     .enter().append("line")
+//     .attr("class", "edge")
+//     .style("stroke-width", 1.0/Math.sqrt(zoomScale))
+//     .attr("x1", function(d) {return x(d.edgeInfo.x1); })
+//     .attr("y1", function(d) {return y(d.edgeInfo.y1); })
+//     .attr("x2", function(d) {return x(d.edgeInfo.x2); })
+//     .attr("y2", function(d) {return y(d.edgeInfo.y2); });
+//
+//   d3.select("#related-repos").selectAll(".related-repo")
+//     .data(relatedRepos, function(edge) {return selectedRepo + "<--->" + edge.otherRepo;})
+//     .enter().append("p")
+//     .attr("class", "related-repo")
+//     .append("a")
+//     .attr("href", "#")
+//     .attr("class", function(d) {return (d.otherRepo.split("/")[0] === owner) ? "same-owner" : "other-owner";})
+//     .on("click", clickLink)
+//     .text(function(d) {return d.otherRepo;});
+//
+//   var sameOwnerNames = relatedRepos.map(function(r) {
+//     return r.otherRepo;
+//   }).filter(function (n) {
+//     return n.split("/")[0] === owner;
+//   });
+//   var otherOwnerNames = relatedRepos.map(function(r) {
+//     return r.otherRepo;
+//   }).filter(function (n) {
+//     return n.split("/")[0] !== owner;
+//   });
+//
+//   d3.selectAll(".dot")
+//   .attr("r", function(node) {
+//     if (node.repo === selectedRepo) {
+//       return 4.0 / Math.sqrt(zoomScale);
+//     } else if (-1 !== sameOwnerNames.indexOf(node.repo)) {
+//       return 3.0 / Math.sqrt(zoomScale);
+//     } else if (-1 !== otherOwnerNames.indexOf(node.repo)) {
+//       return 3.0 / Math.sqrt(zoomScale);
+//     } else {
+//       return 2.0 / Math.sqrt(zoomScale);
+//     }
+//   })
+//   .attr("class", function(node) {
+//     if (node.repo === selectedRepo) {
+//       return "dot selected-repo-node";
+//     } else if (-1 !== sameOwnerNames.indexOf(node.repo)) {
+//       return "dot owner-repo-node";
+//     } else if (-1 !== otherOwnerNames.indexOf(node.repo)) {
+//       return "dot related-repo-node";
+//     } else {
+//       return "dot";
+//     }
+//   })
+// }
+
+// starcounts = results[0];
+// gephi = results[1];
+// nodeDict = gephi.nodes;
+// var nodeList = Object.keys(gephi.nodes).sort();
+//
+// nodes = nodeList.map(function(repo) {
+//   edgesPerNode[repo] = [];
+//   return {"repo": repo, "x": gephi.nodes[repo].x, "y": gephi.nodes[repo].y};
+// });
+// edges = gephi.edges;
+// edges.forEach(function(edge) {
+//   edgeInfo = {
+//     "x1": gephi.nodes[edge.source].x,
+//     "y1": gephi.nodes[edge.source].y,
+//     "x2": gephi.nodes[edge.target].x,
+//     "y2": gephi.nodes[edge.target].y
+//   }
+//   edgesPerNode[edge.source].push({"otherRepo": edge.target, "edgeInfo": edgeInfo});
+//   edgesPerNode[edge.target].push({"otherRepo": edge.source, "edgeInfo": edgeInfo});
+// });
 
 $(document).ready(function () {
   var edges, nodes, edgesPerNode = {}, starcounts, nodeDict;
 
-  var margin = {top: 20, right: 20, bottom: 30, left: 40},
-      width = 800 - margin.left - margin.right,
-      height = 800 - margin.top - margin.bottom;
-
-  var x = d3.scale.linear().range([0, width]);
-  var y = d3.scale.linear().range([height, 0]);
-
-  var preventClick = false;
-  var zoomScale = 1, zoomTranslate = [0,0], oldZoomScale = 2, oldZoomTranslate = [0,0];
-
-  var zoom = d3.behavior.zoom()
-    .scaleExtent([1, 10])
-    .on("zoom", zoomed)
-    .on("zoomend", recluster);
-
-  var svg = d3.select("#scatter")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-    .attr("width", width)
-    .attr("height", height)
-    .call(zoom);
-
-  var container = svg.append("g")
-    .attr("id", "scatter_g");
-
-  var rect = svg.append("rect")
-    .attr("width", width)
-    .attr("height", height)
-    .style("fill", "none")
-    .style("pointer-events", "all")
-    .on("mouseover", function(){return tooltip.style("visibility", "visible");})
-    .on("mousemove", hover)
-    .on("mouseout", function(){return tooltip.style("visibility", "hidden");})
-    .on("click", clickDot);
-
-  var tooltip = d3.select("body")
-    .append("div")
-    .style("position", "absolute")
-    .style("z-index", "10")
-    .style("visibility", "hidden")
-    .style("font-size", "150%")
-    .style("font-weight", "bold")
-    .text("");
-
-  function hover() {
-    tooltip
-      .text(qt.find(d3.mouse(container[0][0])).repo)
-      .style("top", (d3.event.pageY-10)+"px")
-      .style("left",(d3.event.pageX+10)+"px");
-  }
-
-  function clickDot() {
-    if (preventClick || d3.event.defaultPrevented) {
-      preventClick = false;
-      return;
-    }
-    $("#selected-repo").val(qt.find(d3.mouse(container[0][0])).repo).trigger("change");
-  }
-
-  function clickLink() {
-    d3.event.preventDefault();
-    $("#selected-repo").val(d3.select(this).text()).trigger("change");
-  }
-
-  function selectRepo(selectedRepo) {
-    container.selectAll(".edge").remove();
-    d3.select("#related-repos").selectAll(".related-repo").remove();
-
-    if (!selectedRepo) {
-      d3.selectAll(".dot")
-        .attr("class", "dot")
-        .attr("r", 2.0 / Math.sqrt(zoomScale));
-      return;
-    }
-
-    var owner = selectedRepo.split("/")[0];
-    // TODO: refactor related repo stuff to make it more efficient and make radius class based
-    var relatedRepos = edgesPerNode[selectedRepo].filter(function(x) {
-      return x.otherRepo.split("/")[0] === owner;
-    }).sort(function(a,b) {return (a.otherRepo > b.otherRepo) ? 1 : ((a.otherRepo < b.otherRepo) ? -1 : 0);})
-    .concat(edgesPerNode[selectedRepo].filter(function(x) {
-        return x.otherRepo.split("/")[0] !== owner;
-    }).sort(function(a,b) {return (a.otherRepo > b.otherRepo) ? 1 : ((a.otherRepo < b.otherRepo) ? -1 : 0);}));
-    container.selectAll(".edge")
-      .data(relatedRepos, function(edge) {return selectedRepo + "<--->" + edge.otherRepo;})
-      .enter().append("line")
-      .attr("class", "edge")
-      .style("stroke-width", 1.0/Math.sqrt(zoomScale))
-      .attr("x1", function(d) {return x(d.edgeInfo.x1); })
-      .attr("y1", function(d) {return y(d.edgeInfo.y1); })
-      .attr("x2", function(d) {return x(d.edgeInfo.x2); })
-      .attr("y2", function(d) {return y(d.edgeInfo.y2); });
-
-    d3.select("#related-repos").selectAll(".related-repo")
-      .data(relatedRepos, function(edge) {return selectedRepo + "<--->" + edge.otherRepo;})
-      .enter().append("p")
-      .attr("class", "related-repo")
-      .append("a")
-      .attr("href", "#")
-      .attr("class", function(d) {return (d.otherRepo.split("/")[0] === owner) ? "same-owner" : "other-owner";})
-      .on("click", clickLink)
-      .text(function(d) {return d.otherRepo;});
-
-    var sameOwnerNames = relatedRepos.map(function(r) {
-      return r.otherRepo;
-    }).filter(function (n) {
-      return n.split("/")[0] === owner;
-    });
-    var otherOwnerNames = relatedRepos.map(function(r) {
-      return r.otherRepo;
-    }).filter(function (n) {
-      return n.split("/")[0] !== owner;
-    });
-
-    d3.selectAll(".dot")
-    .attr("r", function(node) {
-      if (node.repo === selectedRepo) {
-        return 4.0 / Math.sqrt(zoomScale);
-      } else if (-1 !== sameOwnerNames.indexOf(node.repo)) {
-        return 3.0 / Math.sqrt(zoomScale);
-      } else if (-1 !== otherOwnerNames.indexOf(node.repo)) {
-        return 3.0 / Math.sqrt(zoomScale);
-      } else {
-        return 2.0 / Math.sqrt(zoomScale);
-      }
-    })
-    .attr("class", function(node) {
-      if (node.repo === selectedRepo) {
-        return "dot selected-repo-node";
-      } else if (-1 !== sameOwnerNames.indexOf(node.repo)) {
-        return "dot owner-repo-node";
-      } else if (-1 !== otherOwnerNames.indexOf(node.repo)) {
-        return "dot related-repo-node";
-      } else {
-        return "dot";
-      }
-    })
-  }
-
-  function zoomChangedEnough(percentScale, pxOverScale) {
-    return (zoomScale / oldZoomScale < (1 - percentScale) || oldZoomScale / zoomScale < (1 - percentScale) ||
-        Math.max(Math.abs(zoomTranslate[0] - oldZoomTranslate[0], zoomTranslate[1] - oldZoomTranslate[1])) > pxOverScale/zoomScale)
-  }
-
-  function zoomed() {
-    zoomScale = d3.event.scale;
-    zoomTranslate = [d3.event.translate[0], d3.event.translate[1]];
-    container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-    container.selectAll(".dot")
-      .attr("r", 2.0/Math.sqrt(zoomScale));
-    container.selectAll(".edge")
-      .style("stroke-width", 1.0/Math.sqrt(zoomScale));
-    container.selectAll(".starred-repo")
-      .style("stroke-width", 1.0/Math.sqrt(zoomScale));
-    if (zoomChangedEnough(0.02, 3)) { // drag detected
-      preventClick = true;
-    }
-  }
-
-  function recluster() {
-    // New visible range: ULC = (-d3.event.translate[0]/d3.event.scale,-d3.event.translate[1]/d3.event.scale)
-    //                    LRC = ((width-d3.event.translate[0])/d3.event.scale,(height-d3.event.translate[1])/d3.event.scale)
-    if (zoomChangedEnough(0.1, 10)) {
-      var colors = d3.scale.category10();
-      var km = kmeans(getIncludedNodes(qt,
-                            -zoomTranslate[0]/zoomScale, -zoomTranslate[1]/zoomScale,
-                            (width-zoomTranslate[0])/zoomScale,(height-zoomTranslate[1])/zoomScale
-                            ),
-        10, 300, 25);
-      var top_stars = [];
-      Object.keys(km.assignments).forEach(function(repo) {
-        if (undefined === starcounts[top_stars[km.assignments[repo]]] || starcounts[repo] > starcounts[top_stars[km.assignments[repo]]]) {
-          top_stars[km.assignments[repo]] = repo;
-        }
-      });
-      container.selectAll(".starred-repo").remove();
-      container.selectAll(".starred-repo").data(top_stars.filter(function(x) {return true;})) // skip array holes
-        .enter().append("svg:polygon")
-        .attr("class", "starred-repo")
-        .style("stroke-width", 1.0/Math.sqrt(zoomScale))
-        .attr("points", function(repo) {return starPoints(x(nodeDict[repo].x), y(nodeDict[repo].y), 5, 10.0/Math.sqrt(zoomScale), 5.0/Math.sqrt(zoomScale));});
-    }
-    oldZoomScale = zoomScale;
-    oldZoomTranslate = [zoomTranslate[0], zoomTranslate[1]];
-    preventClick = false;
-  }
-
   d3_queue.queue(2)
-    .defer(d3.json, "data/starcounts.json")
-    .defer(d3.json, "data/gephi_output.json")
+    .defer(d3.json, "data/compressed_gitmap.json")
     .awaitAll(function(error, results) {
       if (error) throw error;
-      starcounts = results[0];
-      gephi = results[1];
-      nodeDict = gephi.nodes;
-      var nodeList = Object.keys(gephi.nodes).sort();
 
-      nodes = nodeList.map(function(repo) {
-        edgesPerNode[repo] = [];
-        return {"repo": repo, "x": gephi.nodes[repo].x, "y": gephi.nodes[repo].y};
-      });
-      edges = gephi.edges;
-      edges.forEach(function(edge) {
-        edgeInfo = {
-          "x1": gephi.nodes[edge.source].x,
-          "y1": gephi.nodes[edge.source].y,
-          "x2": gephi.nodes[edge.target].x,
-          "y2": gephi.nodes[edge.target].y
-        }
-        edgesPerNode[edge.source].push({"otherRepo": edge.target, "edgeInfo": edgeInfo});
-        edgesPerNode[edge.target].push({"otherRepo": edge.source, "edgeInfo": edgeInfo});
-      });
+      repoTree = results[0];
+      theApp.addBreadCrumbs(repoTree, []);
+
       $("#selected-repo").select2({
         theme: "classic",
         placeholder: "Type or click on the map to select a repository...",
         allowClear: true,
-        data: nodeList
+        data: theApp.getAllChildren(repoTree)
       });
       $("#selected-repo-placeholder").addClass("hidden");
       $("#selected-repo").removeClass("hidden");
 
-      x.domain(d3.extent(nodes, function(d) { return d.x; }));
-      y.domain(d3.extent(nodes, function(d) { return d.y; }));
+      theApp.createTreeMap(repoTree,1);
 
-      qt = d3.geom.quadtree(nodes.map(function(repo) {
-        return {"repo": repo.repo, "x": x(repo.x), "y": y(repo.y)};
-      }));
-
-      container.selectAll(".dot")
-        .data(nodes, function(node) {return node.repo;})
-        .enter().append("circle")
-        .attr("class", "dot")
-        .attr("r", 2)
-        .attr("cx", function(d) { return x(d.x); })
-        .attr("cy", function(d) { return y(d.y); });
-
-      recluster();
   });
   $("#selected-repo").on("change", function() {selectRepo($("#selected-repo").val());});
 });
