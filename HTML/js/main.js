@@ -1,6 +1,7 @@
 var theApp = (function() {
   var outerSVG = d3.select("#treemap");
   outerSVG.style("height", outerSVG.style("width")); // make square
+  var repoMap = {fullDict: {}, leafList: [], leafDict: {}};
 
   function countChildren(node) {
     if (!node.children) {
@@ -30,24 +31,28 @@ var theApp = (function() {
 
   function getAllChildren(node) {
     if (!node.children) {
-      return [node.name];
+      return [{id: node.repoID, text: node.name}];
     } else {
       return node.children.map(getAllChildren).reduce(function(a,b) {return a.concat(b);}, []);
     }
   }
 
   function addBreadCrumbs(node, trail) {
-    node.breadcrumbs = trail;
-    if (node.children) {
-      node.children.forEach(function(x) {addBreadCrumbs(x,trail.concat([node.name]));});
+    node.breadcrumbs = trail.concat([node.name]);
+    node.sanitizedName = node.breadcrumbs.map(function(x) {return x.replace(/\W+/g,"_");}).join("-");
+    repoMap.fullDict[node.breadcrumbs] = node;
+    if (!node.children) {
+      repoMap.leafList.push(node);
+      node.repoID = repoMap.leafList.length - 1;
+      repoMap.leafDict[node.name] = node;
+    } else {
+      node.children.forEach(function(x) {addBreadCrumbs(x,node.breadcrumbs);});
     }
   }
 
   function createTreeMap(root, level) {
 
     function showToolTip(d) {
-      var element = innerSVG.select("#level-" + level + "-depth-" + d.depth + "-" + d.name.replace(/\W+/g,"_"));
-
       tooltip.selectAll("tspan").remove();
       tooltip.selectAll("tspan")
         .data(tooltipText(d))
@@ -79,12 +84,17 @@ var theApp = (function() {
     }
 
     function addInnerMap(d) {
-      var newRoot = root;
-      for (var i=level; i < d.depth+level-1; i++) {
-        newRoot = newRoot.children.filter(function(x) {return x.name === d.breadcrumbs[i];})[0];
+      if (d.children) {
+        hideToolTip();
+        createTreeMap(repoMap.fullDict[d.breadcrumbs], d.depth+level);
+      } else {
+        if (repoMap.fullDict[d.breadcrumbs].repoID === parseInt($("#selected-repo").val(),10)) {
+          $("#selected-repo").val(null);
+        } else {
+          $("#selected-repo").val(repoMap.fullDict[d.breadcrumbs].repoID);
+        }
       }
-      // find the array element whose name is the name we want
-      createTreeMap(newRoot.children.filter(function(x) {return x.name === d.name;})[0], d.depth+level);
+      $("#selected-repo").trigger("change");
     }
 
     var containerWidth = parseFloat(outerSVG.style("width"));
@@ -111,8 +121,7 @@ var theApp = (function() {
       .selectAll("circle")
         .data(nodes)
       .enter().append("circle")
-        .attr("class", function(d) { return d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"; })
-        .attr("id", function(d) {return "level-" + level + "-depth-" + d.depth + "-" + d.name.replace(/\W+/g,"_");})
+        .attr("class", function(d) { return d.sanitizedName + " " + (d.parent ? d.children ? "node" : "node node--leaf" : "node node--root"); })
         .style("fill", function(d) { return d.children ? color(level + d.depth - 1) : null; })
         .attr("r", function(d) {return d.r;})
         .attr("cx", function(d) {return d.x;})
@@ -156,8 +165,19 @@ var theApp = (function() {
         .attr("cx", diameter * 0.03)
         .attr("cy", diameter * 0.03)
         .attr("r", diameter * 0.03)
-        .on("click", function() {innerSVG.remove();});
+        .on("click", function() { innerSVG.remove(); });
+    }
+  }
 
+  function selectRepo(selectedRepo) {
+    d3.selectAll(".node")
+      .classed("selected", false);
+    if (selectedRepo) {
+      // start i at 1 to skip "github"
+      for (var i=1; i < repoMap.leafList[selectedRepo].breadcrumbs.length; i++) {
+        d3.selectAll(".node." + repoMap.fullDict[repoMap.leafList[selectedRepo].breadcrumbs.slice(0,i+1)].sanitizedName)
+          .classed("selected", true);
+      }
     }
   }
 
@@ -165,6 +185,8 @@ var theApp = (function() {
     createTreeMap: createTreeMap,
     getAllChildren: getAllChildren,
     addBreadCrumbs: addBreadCrumbs,
+    selectRepo: selectRepo,
+    repoMap: repoMap,
   };
 })();
 
@@ -283,18 +305,27 @@ $(document).ready(function () {
 
       repoTree = results[0];
       theApp.addBreadCrumbs(repoTree, []);
+      theApp.createTreeMap(repoTree,1);
 
-      $("#selected-repo").select2({
+      var $sr = $("#selected-repo");
+      $sr.select2({
         theme: "classic",
         placeholder: "Type or click on the map to select a repository...",
         allowClear: true,
         data: theApp.getAllChildren(repoTree)
       });
       $("#selected-repo-placeholder").addClass("hidden");
-      $("#selected-repo").removeClass("hidden");
-
-      theApp.createTreeMap(repoTree,1);
+      $sr.removeClass("hidden");
+      $sr.on("change", function() { theApp.selectRepo($("#selected-repo").val()); });
+      // prevent "x" from opening dropdown - code from https://github.com/select2/select2/issues/3320
+      $sr.on('select2:unselecting', function(e) {
+          $sr.data('unselecting', true);
+      }).on('select2:open', function(e) { // note the open event is important
+          if ($sr.data('unselecting')) {
+              $sr.removeData('unselecting'); // you need to unset this before close
+              $sr.select2('close');
+          }
+      });
 
   });
-  $("#selected-repo").on("change", function() {selectRepo($("#selected-repo").val());});
 });
