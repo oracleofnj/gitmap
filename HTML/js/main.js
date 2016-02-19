@@ -1,6 +1,6 @@
 var theApp = (function() {
   var outerSVG = d3.select("#treemap");
-  var isNarrow = outerSVG.node().getBoundingClientRect().width < 600;
+  var isNarrow = outerSVG.node().getBoundingClientRect().width < 500;
   outerSVG.style("height", outerSVG.style("width")); // make square
   if (isNarrow) {
     d3.select("#tooltip-text").classed("hidden", false);
