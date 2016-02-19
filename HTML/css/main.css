@@ -13,9 +13,35 @@
 
 .node {
   cursor: pointer;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
-.node:hover {
+.node.level0 {
+  fill: #0570b0;
+}
+
+.node.level1 {
+  fill: #3690c0;
+}
+
+.node.level2 {
+  fill: #74a9cf;
+}
+
+.node.level3 {
+  fill: #a6bddb;
+}
+
+.node.level4 {
+  fill: #d0d1e6;
+}
+
+.node.level5 {
+  fill: #ece7f2;
+}
+
+.node.outlined {
   stroke: #000;
   stroke-width: 1.5px;
 }
@@ -28,6 +54,7 @@
   stroke: #FF0000;
   stroke-width: 1.5px;
 }
+
 
 .node--leaf.selected {
   fill: #FF0000;
@@ -53,14 +80,18 @@
 }
 
 .closebuttoncircle {
-  fill: #000000;
-  fill-opacity: 0;
+  fill: none;
   stroke: #000000;
   stroke-width: 2;
+  cursor: pointer;
+  pointer-events: all;
 }
 
+.mobile-tooltip {
+  min-height: 60px;
+}
 
 .select2-container--classic .select2-results > .select2-results__options {
-  max-height: 500px;
+  max-height: 300px;
   overflow-y: auto;
 }
