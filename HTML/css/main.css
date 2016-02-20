@@ -50,11 +50,19 @@
   fill: white;
 }
 
+.node.related {
+  stroke: #00FF00;
+  stroke-width: 1.5px;
+}
+
+.node--leaf.related {
+  fill: #00FF00;
+}
+
 .node.selected {
   stroke: #FF0000;
   stroke-width: 1.5px;
 }
-
 
 .node--leaf.selected {
   fill: #FF0000;
@@ -94,4 +102,8 @@
 .select2-container--classic .select2-results > .select2-results__options {
   max-height: 300px;
   overflow-y: auto;
+}
+
+.select2-selection__clear {
+  font-size: 1.5em;
 }

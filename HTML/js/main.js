@@ -5,7 +5,7 @@ var theApp = (function() {
   if (isNarrow) {
     d3.select("#tooltip-text").classed("hidden", false);
   }
-  var repoMap = {fullDict: {}, leafList: [], leafDict: {}};
+  var repoMap = {fullDict: {}, leafList: [], leafDict: {}, edgeList: []};
 
   function countChildren(node) {
     if (!node.children) {
@@ -47,6 +47,7 @@ var theApp = (function() {
     repoMap.fullDict[node.breadcrumbs] = node;
     if (!node.children) {
       repoMap.leafList.push(node);
+      repoMap.edgeList.push([]);
       node.repoID = repoMap.leafList.length - 1;
       repoMap.leafDict[node.name] = node;
     } else {
@@ -54,15 +55,31 @@ var theApp = (function() {
     }
   }
 
+  function addEdges(edges) {
+    edges.forEach(function(edge) {
+      if (repoMap.leafDict[edge[0]] && repoMap.leafDict[edge[1]]) {
+        repoMap.edgeList[repoMap.leafDict[edge[0]].repoID].push(repoMap.leafDict[edge[1]]);
+        repoMap.edgeList[repoMap.leafDict[edge[1]].repoID].push(repoMap.leafDict[edge[0]]);
+      }
+    });
+  }
+
   function selectRepo(selectedRepo) {
     d3.selectAll(".node")
-      .classed("selected", false);
+      .classed("selected", false)
+      .classed("related", false);
     if (selectedRepo) {
       // start i at 1 to skip "github"
       for (var i=1; i < repoMap.leafList[selectedRepo].breadcrumbs.length; i++) {
         d3.selectAll(".node." + repoMap.fullDict[repoMap.leafList[selectedRepo].breadcrumbs.slice(0,i+1)].sanitizedName)
           .classed("selected", true);
       }
+      repoMap.edgeList[selectedRepo].forEach(function(relatedRepo) {
+        for (i=1; i < relatedRepo.breadcrumbs.length; i++) {
+          d3.selectAll(".node." + repoMap.fullDict[relatedRepo.breadcrumbs.slice(0,i+1)].sanitizedName)
+            .classed("related", true);
+        }
+      });
     }
   }
 
@@ -138,11 +155,9 @@ var theApp = (function() {
 
     var innerSVG = outerSVG.append("g");
     if (level > 1) {
-      console.log(initialLeft, initialTop, initialDiameter)
       innerSVG
         .attr("transform","translate(" + initialLeft + "," + initialTop + ")"
                           + " scale(" + initialDiameter / diameter + ")");
-      console.log(innerSVG.attr("transform"));
     } else {
       innerSVG.attr("transform","translate(" + margin + "," + margin + ")");
     }
@@ -301,6 +316,7 @@ var theApp = (function() {
     createTreeMap: createTreeMap,
     getAllChildren: getAllChildren,
     addBreadCrumbs: addBreadCrumbs,
+    addEdges: addEdges,
     selectRepo: selectRepo,
     repoMap: repoMap,
   };
@@ -415,12 +431,15 @@ $(document).ready(function () {
   var edges, nodes, edgesPerNode = {}, starcounts, nodeDict;
 
   d3_queue.queue(2)
-    .defer(d3.json, "data/compressed_gitmap.json")
+    .defer(d3.json, "data/gitmap.json")
     .awaitAll(function(error, results) {
       if (error) throw error;
 
-      repoTree = results[0];
+      repoTree = results[0].tree;
+      edges = results[0].links;
+
       theApp.addBreadCrumbs(repoTree, []);
+      theApp.addEdges(edges);
       theApp.createTreeMap(repoTree,1);
 
       var $sr = $("#selected-repo");
