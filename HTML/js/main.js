@@ -68,18 +68,36 @@ var theApp = (function() {
     d3.selectAll(".node")
       .classed("selected", false)
       .classed("related", false);
+    d3.select("#related-repos").selectAll(".related-repo").remove();
+    var repo = repoMap.leafList[selectedRepo];
     if (selectedRepo) {
       // start i at 1 to skip "github"
-      for (var i=1; i < repoMap.leafList[selectedRepo].breadcrumbs.length; i++) {
-        d3.selectAll(".node." + repoMap.fullDict[repoMap.leafList[selectedRepo].breadcrumbs.slice(0,i+1)].sanitizedName)
+      for (var i=1; i < repo.breadcrumbs.length; i++) {
+        d3.selectAll(".node." + repoMap.fullDict[repo.breadcrumbs.slice(0,i+1)].sanitizedName)
           .classed("selected", true);
       }
+      var owner = repo.name.split("/")[0], reposBySameOwner = [], reposByOtherOwner = [];
       repoMap.edgeList[selectedRepo].forEach(function(relatedRepo) {
+        if (relatedRepo.name.split("/")[0] === owner) {
+          reposBySameOwner.push(relatedRepo);
+        } else {
+          reposByOtherOwner.push(relatedRepo);
+        }
         for (i=1; i < relatedRepo.breadcrumbs.length; i++) {
           d3.selectAll(".node." + repoMap.fullDict[relatedRepo.breadcrumbs.slice(0,i+1)].sanitizedName)
             .classed("related", true);
         }
       });
+      d3.select("#related-repos").selectAll(".related-repo.same-owner")
+        .data(reposBySameOwner.sort(function(a,b) { return a.name.localeCompare(b.name); }))
+        .enter().append("p").attr("class", "related-repo same-owner");
+      d3.select("#related-repos").selectAll(".related-repo.other-owner")
+        .data(reposByOtherOwner.sort(function(a,b) { return a.name.localeCompare(b.name); }))
+        .enter().append("p").attr("class", "related-repo other-owner");
+      d3.select("#related-repos").selectAll(".related-repo")
+        .append("a")
+        .text(function(d) {return d.name;})
+        .on("click", function(d) { $("#selected-repo").val(d.repoID).trigger("change"); });
     }
   }
 
@@ -169,19 +187,28 @@ var theApp = (function() {
     // d3 is going to mutate the object - make a deep copy before passing it in
     var nodes = pack.nodes(JSON.parse(JSON.stringify(root)));
 
-    var circles = innerSVG.append("g")
-      .attr("class", "circle-container")
-      .selectAll("circle")
-        .data(nodes.filter(function(d) { return !isNarrow || d.depth < 3; }))
-      .enter().append("circle")
-        .attr("class", function(d) {
-          return d.sanitizedName + " " +
-                (d.parent ? d.children ? "node" : "node node--leaf" : "node node--root") +
-                (d.children ? " level" + (level + d.depth - 1) : "");
-        })
-        .attr("r", function(d) {return d.r;})
-        .attr("cx", function(d) {return d.x;})
-        .attr("cy", function(d) {return d.y;});
+    var circleG = innerSVG.append("g")
+      .attr("class", "circle-container");
+    var startTime = Date.now();
+    for (var i=0; i < 5; i++) {
+      circleG
+        .selectAll("circle.depth" + i)
+          .data(nodes.filter(function(d) { return d.depth === i; }))
+        .enter().append("circle")
+          .attr("class", function(d) {
+            return d.sanitizedName + " depth" + d.depth + " " +
+                  (d.parent ? d.children ? "node" : "node node--leaf" : "node node--root") +
+                  (d.children ? " level" + (level + d.depth - 1) : "");
+          })
+          .attr("r", function(d) {return d.r;})
+          .attr("cx", function(d) {return d.x;})
+          .attr("cy", function(d) {return d.y;});
+      if (i > 1 && (Date.now() - startTime) > 15) {
+        // keep page snappy
+        break;
+      }
+    }
+    var circles = circleG.selectAll("circle");
 
     if (isNarrow) {
       circles
