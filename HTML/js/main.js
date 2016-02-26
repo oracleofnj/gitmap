@@ -6,12 +6,67 @@ var theApp = (function() {
     d3.select("#tooltip-text").classed("hidden", false);
   }
   var repoMap = {fullDict: {}, leafList: [], leafDict: {}, edgeList: []};
+  var appState = {selectedRepoID: null, selectedRepoName: ""};
+  var $sr;
 
   function countChildren(node) {
     if (!node.children) {
       return 1;
     } else {
       return node.children.map(countChildren).reduce(function(a,b) {return a+b;},0);
+    }
+  }
+
+  function initSelectBox(rootNode) {
+    $sr = $("#selected-repo");
+    $sr.select2({
+      theme: "classic",
+      placeholder: "Type or click on the map to select a repository...",
+      allowClear: true,
+      minimumInputLength: 3,
+      data: getAllChildren(rootNode).sort(function(a,b) {return a.text.localeCompare(b.text);})
+    });
+    $("#selected-repo-placeholder").addClass("hidden");
+    $sr.removeClass("hidden");
+    $sr.on("change", function() {
+      dispatch({
+        type: "SELECT_REPO",
+        byName: false,
+        repoID: ($sr.val() === "") ? null : parseInt($sr.val(), 10),
+        pushHistoryEntry: true
+      });
+    });
+    // prevent "x" from opening dropdown - code from https://github.com/select2/select2/issues/3320
+    $sr.on('select2:unselecting', function(e) {
+        $sr.data('unselecting', true);
+    }).on('select2:open', function(e) { // note the open event is important
+        if ($sr.data('unselecting')) {
+            $sr.removeData('unselecting'); // you need to unset this before close
+            $sr.select2('close');
+        }
+    });
+  }
+
+  function initApp(repoTree, edges) {
+    addBreadCrumbs(repoTree, []);
+    addEdges(edges);
+    createTreeMap(repoTree,1);
+    initSelectBox(repoTree);
+    window.addEventListener('popstate', function(e) {
+      if (e.state) {
+        dispatch({type: "SELECT_REPO", byName: false, repoID: e.state.repoID, pushHistoryEntry: false});
+      }
+    }, false);
+    if (/^#!\S+\/\S+$/.test(window.location.hash)) {
+      dispatch({type: "SELECT_REPO", byName: true, repoName: window.location.hash.slice(2), pushHistoryEntry: false});
+    } else {
+      dispatch({type: "SELECT_REPO", byName: false, repoID: null, pushHistoryEntry: false});
+    }
+    if (Modernizr.history) {
+      history.replaceState(
+        {repoID: appState.selectedRepoID},
+        "Github Repository Map" + ((appState.selectedRepoID === null) ? "" : " - " + appState.selectedRepoName)
+      );
     }
   }
 
@@ -64,20 +119,53 @@ var theApp = (function() {
     });
   }
 
-  function selectRepo(selectedRepo) {
+  function dispatch(action) {
+    // Redux-inspired single source of truth, but mutate the state for now
+    switch(action.type) {
+      case "SELECT_REPO":
+        if ((action.byName && (appState.selectedRepoName === action.repoName)) ||
+            (!action.byName && (appState.selectedRepoID === action.repoID))) {
+            // already selected, exit
+              return;
+        }
+        if (action.byName) {
+          appState.selectedRepoName = action.repoName;
+          appState.selectedRepoID = (action.repoName === "") ? null : repoMap.leafDict[action.repoName].repoID;
+        } else {
+          appState.selectedRepoName = (action.repoID === null) ? "" : repoMap.leafList[action.repoID].name;
+          appState.selectedRepoID = action.repoID;
+        }
+        if (action.pushHistoryEntry && Modernizr.history) {
+          // back button will not work on IE9
+          history.pushState(
+            {repoID: appState.selectedRepoID},
+            "Github Repository Map" + ((appState.selectedRepoID === null) ? "" : " - " + appState.selectedRepoName),
+            (appState.selectedRepoID === null) ? "/" : ("#!" + appState.selectedRepoName)
+          );
+        }
+        rerender();
+        break;
+      default:
+        throw "Unknown action";
+    }
+  }
+
+  function rerender() {
     d3.selectAll(".node")
       .classed("selected", false)
       .classed("related", false);
     d3.select("#related-repos").selectAll(".related-repo").remove();
-    var repo = repoMap.leafList[selectedRepo];
-    if (selectedRepo) {
+    $sr.val(appState.selectedRepoID).trigger("change");
+    if (appState.selectedRepoID) {
+      var repo = repoMap.leafList[appState.selectedRepoID];
+
       // start i at 1 to skip "github"
       for (var i=1; i < repo.breadcrumbs.length; i++) {
         d3.selectAll(".node." + repoMap.fullDict[repo.breadcrumbs.slice(0,i+1)].sanitizedName)
           .classed("selected", true);
       }
       var owner = repo.name.split("/")[0], reposBySameOwner = [], reposByOtherOwner = [];
-      repoMap.edgeList[selectedRepo].forEach(function(relatedRepo) {
+      repoMap.edgeList[appState.selectedRepoID].forEach(function(relatedRepo) {
         if (relatedRepo.name.split("/")[0] === owner) {
           reposBySameOwner.push(relatedRepo);
         } else {
@@ -97,7 +185,7 @@ var theApp = (function() {
       d3.select("#related-repos").selectAll(".related-repo")
         .append("a")
         .text(function(d) {return d.name;})
-        .on("click", function(d) { $("#selected-repo").val(d.repoID).trigger("change"); });
+        .on("click", function(d) { dispatch({type: "SELECT_REPO", byName: false, repoID: d.repoID, pushHistoryEntry: true}); });
     }
   }
 
@@ -151,14 +239,15 @@ var theApp = (function() {
       if (node.children) {
         hideToolTip();
         createTreeMap(repoMap.fullDict[node.breadcrumbs], node.depth+level, margin + node.x - node.r, margin + node.y - node.r, 2 * node.r);
+        rerender();
       } else {
-        if (repoMap.fullDict[node.breadcrumbs].repoID === parseInt($("#selected-repo").val(),10)) {
-          $("#selected-repo").val(null);
-        } else {
-          $("#selected-repo").val(repoMap.fullDict[node.breadcrumbs].repoID);
-        }
+        dispatch({
+          type: "SELECT_REPO",
+          byName: false,
+          repoID: (repoMap.fullDict[node.breadcrumbs].repoID === appState.selectedRepoID) ? null : repoMap.fullDict[node.breadcrumbs].repoID,
+          pushHistoryEntry: true
+        });
       }
-      $("#selected-repo").trigger("change");
     }
 
     var containerWidth = parseFloat(outerSVG.style("width"));
@@ -173,10 +262,12 @@ var theApp = (function() {
 
     var innerSVG = outerSVG.append("g");
     if (level > 1) {
+      // start small and use d3 transition for zoom effect
       innerSVG
         .attr("transform","translate(" + initialLeft + "," + initialTop + ")"
                           + " scale(" + initialDiameter / diameter + ")");
     } else {
+      // start full size
       innerSVG.attr("transform","translate(" + margin + "," + margin + ")");
     }
 
@@ -338,121 +429,11 @@ var theApp = (function() {
     }
   }
 
-
   return {
-    createTreeMap: createTreeMap,
-    getAllChildren: getAllChildren,
-    addBreadCrumbs: addBreadCrumbs,
-    addEdges: addEdges,
-    selectRepo: selectRepo,
+    initApp: initApp,
     repoMap: repoMap,
   };
 })();
-
-// function clickDot() {
-//   $("#selected-repo").val(qt.find(d3.mouse(container[0][0])).repo).trigger("change");
-// }
-//
-// function clickLink() {
-//   d3.event.preventDefault();
-//   $("#selected-repo").val(d3.select(this).text()).trigger("change");
-// }
-//
-// function selectRepo(selectedRepo) {
-//   container.selectAll(".edge").remove();
-//   d3.select("#related-repos").selectAll(".related-repo").remove();
-//
-//   if (!selectedRepo) {
-//     d3.selectAll(".dot")
-//       .attr("class", "dot")
-//       .attr("r", 2.0 / Math.sqrt(zoomScale));
-//     return;
-//   }
-//
-//   var owner = selectedRepo.split("/")[0];
-//   // TODO: refactor related repo stuff to make it more efficient and make radius class based
-//   var relatedRepos = edgesPerNode[selectedRepo].filter(function(x) {
-//     return x.otherRepo.split("/")[0] === owner;
-//   }).sort(function(a,b) {return (a.otherRepo > b.otherRepo) ? 1 : ((a.otherRepo < b.otherRepo) ? -1 : 0);})
-//   .concat(edgesPerNode[selectedRepo].filter(function(x) {
-//       return x.otherRepo.split("/")[0] !== owner;
-//   }).sort(function(a,b) {return (a.otherRepo > b.otherRepo) ? 1 : ((a.otherRepo < b.otherRepo) ? -1 : 0);}));
-//   container.selectAll(".edge")
-//     .data(relatedRepos, function(edge) {return selectedRepo + "<--->" + edge.otherRepo;})
-//     .enter().append("line")
-//     .attr("class", "edge")
-//     .style("stroke-width", 1.0/Math.sqrt(zoomScale))
-//     .attr("x1", function(d) {return x(d.edgeInfo.x1); })
-//     .attr("y1", function(d) {return y(d.edgeInfo.y1); })
-//     .attr("x2", function(d) {return x(d.edgeInfo.x2); })
-//     .attr("y2", function(d) {return y(d.edgeInfo.y2); });
-//
-//   d3.select("#related-repos").selectAll(".related-repo")
-//     .data(relatedRepos, function(edge) {return selectedRepo + "<--->" + edge.otherRepo;})
-//     .enter().append("p")
-//     .attr("class", "related-repo")
-//     .append("a")
-//     .attr("href", "#")
-//     .attr("class", function(d) {return (d.otherRepo.split("/")[0] === owner) ? "same-owner" : "other-owner";})
-//     .on("click", clickLink)
-//     .text(function(d) {return d.otherRepo;});
-//
-//   var sameOwnerNames = relatedRepos.map(function(r) {
-//     return r.otherRepo;
-//   }).filter(function (n) {
-//     return n.split("/")[0] === owner;
-//   });
-//   var otherOwnerNames = relatedRepos.map(function(r) {
-//     return r.otherRepo;
-//   }).filter(function (n) {
-//     return n.split("/")[0] !== owner;
-//   });
-//
-//   d3.selectAll(".dot")
-//   .attr("r", function(node) {
-//     if (node.repo === selectedRepo) {
-//       return 4.0 / Math.sqrt(zoomScale);
-//     } else if (-1 !== sameOwnerNames.indexOf(node.repo)) {
-//       return 3.0 / Math.sqrt(zoomScale);
-//     } else if (-1 !== otherOwnerNames.indexOf(node.repo)) {
-//       return 3.0 / Math.sqrt(zoomScale);
-//     } else {
-//       return 2.0 / Math.sqrt(zoomScale);
-//     }
-//   })
-//   .attr("class", function(node) {
-//     if (node.repo === selectedRepo) {
-//       return "dot selected-repo-node";
-//     } else if (-1 !== sameOwnerNames.indexOf(node.repo)) {
-//       return "dot owner-repo-node";
-//     } else if (-1 !== otherOwnerNames.indexOf(node.repo)) {
-//       return "dot related-repo-node";
-//     } else {
-//       return "dot";
-//     }
-//   })
-// }
-
-// starcounts = results[0];
-// gephi = results[1];
-// nodeDict = gephi.nodes;
-// var nodeList = Object.keys(gephi.nodes).sort();
-//
-// nodes = nodeList.map(function(repo) {
-//   edgesPerNode[repo] = [];
-//   return {"repo": repo, "x": gephi.nodes[repo].x, "y": gephi.nodes[repo].y};
-// });
-// edges = gephi.edges;
-// edges.forEach(function(edge) {
-//   edgeInfo = {
-//     "x1": gephi.nodes[edge.source].x,
-//     "y1": gephi.nodes[edge.source].y,
-//     "x2": gephi.nodes[edge.target].x,
-//     "y2": gephi.nodes[edge.target].y
-//   }
-//   edgesPerNode[edge.source].push({"otherRepo": edge.target, "edgeInfo": edgeInfo});
-//   edgesPerNode[edge.target].push({"otherRepo": edge.source, "edgeInfo": edgeInfo});
-// });
 
 $(document).ready(function () {
   var edges, nodes, edgesPerNode = {}, starcounts, nodeDict;
@@ -465,30 +446,7 @@ $(document).ready(function () {
       repoTree = results[0].tree;
       edges = results[0].links;
 
-      theApp.addBreadCrumbs(repoTree, []);
-      theApp.addEdges(edges);
-      theApp.createTreeMap(repoTree,1);
-
-      var $sr = $("#selected-repo");
-      $sr.select2({
-        theme: "classic",
-        placeholder: "Type or click on the map to select a repository...",
-        allowClear: true,
-        minimumInputLength: 3,
-        data: theApp.getAllChildren(repoTree).sort(function(a,b) {return a.text.localeCompare(b.text);})
-      });
-      $("#selected-repo-placeholder").addClass("hidden");
-      $sr.removeClass("hidden");
-      $sr.on("change", function() { theApp.selectRepo($("#selected-repo").val()); });
-      // prevent "x" from opening dropdown - code from https://github.com/select2/select2/issues/3320
-      $sr.on('select2:unselecting', function(e) {
-          $sr.data('unselecting', true);
-      }).on('select2:open', function(e) { // note the open event is important
-          if ($sr.data('unselecting')) {
-              $sr.removeData('unselecting'); // you need to unset this before close
-              $sr.select2('close');
-          }
-      });
+      theApp.initApp(repoTree, edges);
 
   });
 });

@@ -46,21 +46,21 @@
 }
 
 .node.related {
-  stroke: #CC79A7;
+  stroke: #BC6997;
   stroke-width: 1.5px;
 }
 
 .node--leaf.related {
-  fill: #CC79A7;
+  fill: #BC6997;
 }
 
 .node.selected {
-  stroke: #FFAF10;
+  stroke: #FFBF20;
   stroke-width: 1.5px;
 }
 
 .node--leaf.selected {
-  fill: #FFAF10;
+  fill: #FFBF20;
 }
 
 .node.outlined {
