@@ -28,19 +28,21 @@
 
     <div class="container-fluid">
       <div class="row">
-        <div class="col-md-4 col-md-push-8">
-          <h4>Selected Repo</h4>
-          <div style="width:100%;">
+        <div class="col-md-8">
+          <h5 style="width:100%;">
             <div id="selected-repo-placeholder">Loading data...</div>
             <select class="hidden" id="selected-repo" style="width:100%;"><option></option></select>
-          </div>
-          <h4>Related Repos</h4>
-          <div id="related-repos">
-          </div>
-        </div>
-        <div class="col-md-8 col-md-pull-4">
+          </h5>
           <div id="tooltip-text" class="mobile-tooltip hidden"></div>
           <svg id="treemap" width="100%"></svg>
+          <p>
+            Displaying:
+            <span id="breadcrumbs">All</span>
+          </p>
+        </div>
+        <div class="col-md-4">
+          <h5 id="related-repo-header">Select a repository to find related repos</h5>
+          <div id="related-repos">
         </div>
       </div>
     </div> <!-- /container -->

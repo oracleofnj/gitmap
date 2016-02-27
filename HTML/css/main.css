@@ -103,10 +103,6 @@
   pointer-events: all;
 }
 
-.mobile-tooltip {
-  min-height: 60px;
-}
-
 .select2-container--classic .select2-results > .select2-results__options {
   max-height: 300px;
   overflow-y: auto;
