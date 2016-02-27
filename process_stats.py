@@ -240,7 +240,7 @@ if __name__ == "__main__":
     collapseTreeNode(d3_gitmap)
     full_gitmap = {"tree": d3_gitmap, "links": [(r1, r2) for (r1, r2, r3, r4) in linkedrepos]}
     with open("gitmap.json", "w") as f:
-        f.write(json.dumps(full_gitmap, indent=2))
+        f.write(json.dumps(full_gitmap)) #, indent=2))
 
 
     # repo_ranks, user_ranks = calc_gitrank_graph(links)
