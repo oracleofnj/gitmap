@@ -228,15 +228,22 @@ if __name__ == "__main__":
     resp, avail = calc_similarities(r2r_midlevel, repos, 0, 50, 0.99)
     ex3, ch3 = gen_exemplars(resp, avail)
 
+    toplevel = [x for x in ch3 if x in ch3[x]]
+    r2r_toplevel = {r1: {r2: r2r_midlevel[r1][r2] for r2 in r2r_midlevel[r1].keys() if r2 in toplevel} for r1 in r2r_midlevel.keys() if r1 in toplevel}
+    resp, avail = calc_similarities(r2r_toplevel, repos, 0, 100, 0.99)
+    ex4, ch4 = gen_exemplars(resp, avail)
+
     d3_gitmap = {"name": "github", "children": [ \
                     {"name": root, "children": [ \
-                        {"name": grandpa, "children": [ \
-                            {"name": dad, "children": \
-                                [{"name": child} \
-                                for child in sorted(ch[dad])]} \
-                            for dad in sorted(ch2[grandpa])]} \
-                        for grandpa in sorted(ch3[root])]} \
-                    for root in sorted(ch3.keys())]}
+                        {"name": greatgrandpa, "children": [ \
+                            {"name": grandpa, "children": [ \
+                                {"name": dad, "children": \
+                                    [{"name": child} \
+                                    for child in sorted(ch[dad])]} \
+                                for dad in sorted(ch2[grandpa])]} \
+                            for grandpa in sorted(ch3[greatgrandpa])]} \
+                        for greatgrandpa in sorted(ch4[root])]} \
+                    for root in sorted(ch4.keys())]}
     collapseTreeNode(d3_gitmap)
     full_gitmap = {"tree": d3_gitmap, "links": [(r1, r2) for (r1, r2, r3, r4) in linkedrepos]}
     with open("gitmap.json", "w") as f:

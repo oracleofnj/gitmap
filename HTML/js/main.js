@@ -4,6 +4,7 @@ var theApp = (function() {
   outerSVG.style("height", outerSVG.style("width")); // make square
   if (isNarrow) {
     d3.select("#tooltip-text").classed("hidden", false);
+    d3.select("#breadcrumb-container").classed("mobile-tooltip", true);
   }
   var repoMap = {fullDict: {}, leafList: [], leafDict: {}, edgeList: []};
   var appState = {selectedRepoID: null, selectedRepoName: "", svgStack: []};
@@ -52,6 +53,7 @@ var theApp = (function() {
   }
 
   function initApp(repoTree, edges) {
+    repoMap.rootNode = repoTree;
     countChildren(repoTree);
     addBreadcrumbs(repoTree, []);
     addEdges(edges);
@@ -73,6 +75,7 @@ var theApp = (function() {
         "Github Repository Map" + ((appState.selectedRepoID === null) ? "" : " - " + appState.selectedRepoName)
       );
     }
+    rerender();
   }
 
   function tooltipText(node) {
@@ -80,7 +83,7 @@ var theApp = (function() {
       // memoize
       return node.tooltipText.slice(0);
     }
-    var res = [node.name];
+    var res = (node.breadcrumbs.length === 1) ? [] : [node.name];
     if (!node.children) {
       node.tooltipText = res;
       return node.tooltipText.slice(0);
@@ -90,7 +93,7 @@ var theApp = (function() {
       .filter(function(child) {return child.name != node.name;})
       .map(function(x) {return [x.name, countChildren(x)];})
       .sort(function(a, b) {return b[1] - a[1]})
-      .slice(0,2);
+      .slice(0,(node.breadcrumbs.length === 1) ? 3 : 2);
     res = res.concat(otherChildCounts.map(function(x) {return x[0];}));
     if (totalChildren > res.length) {
       res.push("...and " + (totalChildren - res.length) + " more");
@@ -192,35 +195,37 @@ var theApp = (function() {
   }
 
   function rerender() {
-    d3.selectAll(".node")
+    d3.selectAll(".node.selected")
       .classed("selected", false)
+    d3.selectAll(".node.related")
       .classed("related", false);
     d3.select("#related-repos").selectAll(".related-repo").remove();
     d3.select("#related-repo-header").html("Select a repository to find related repos");
-    d3.select("#breadcrumbs").html(
-      (appState.svgStack.length > 0) ?
+    d3.select("#breadcrumbs").html("Displaying: " +
+      ((appState.svgStack.length > 0) ?
       appState.svgStack[appState.svgStack.length - 1].join(", ") :
-      "All"
+      tooltipText(repoMap.rootNode).join(", "))
     );
-    $sr.val(appState.selectedRepoID).trigger("change");
+    if (parseInt($sr.val(), 10) !== appState.selectedRepoID) { // really really slow so don't do it if we don't have to
+      $sr.val(appState.selectedRepoID).trigger("change");
+    }
     if (appState.selectedRepoID) {
       var repo = repoMap.leafList[appState.selectedRepoID];
       d3.select("#related-repo-header").html("Repos related to " + repo.name + ":");
-      // start i at 1 to skip "github"
-      for (var i=1; i < repo.breadcrumbs.length; i++) {
-        d3.selectAll(".node." + repoMap.fullDict[repo.breadcrumbs.slice(0,i+1)].sanitizedName)
-          .classed("selected", true);
-      }
+      d3.selectAll(".node").filter(function(d) {
+        return d.depth > 0 && isBreadcrumbPrefix(d.breadcrumbs, repo.breadcrumbs);
+      }).classed("selected", true);
+      d3.selectAll(".node").filter(function(d) {
+        return repoMap.edgeList[appState.selectedRepoID].some(function(relatedRepo) {
+          return d.depth > 0 && isBreadcrumbPrefix(d.breadcrumbs, relatedRepo.breadcrumbs);
+        });
+      }).classed("related", true);
       var owner = repo.name.split("/")[0], reposBySameOwner = [], reposByOtherOwner = [];
       repoMap.edgeList[appState.selectedRepoID].forEach(function(relatedRepo) {
         if (relatedRepo.name.split("/")[0] === owner) {
           reposBySameOwner.push(relatedRepo);
         } else {
           reposByOtherOwner.push(relatedRepo);
-        }
-        for (i=1; i < relatedRepo.breadcrumbs.length; i++) {
-          d3.selectAll(".node." + repoMap.fullDict[relatedRepo.breadcrumbs.slice(0,i+1)].sanitizedName)
-            .classed("related", true);
         }
       });
       d3.select("#related-repos").selectAll(".related-repo.same-owner")
@@ -246,6 +251,9 @@ var theApp = (function() {
         tooltip.html(repoInfo.join(", "));
       } else {
         tooltip.selectAll("tspan").remove();
+        if ((node.y - node.r) < 60) {
+          repoInfo = [repoInfo.join(", ")]; // collapse to one line
+        }
         tooltip.selectAll("tspan")
           .data(repoInfo)
           .enter().append("tspan")
@@ -259,15 +267,16 @@ var theApp = (function() {
 
         var textRect = tooltip[0][0].getBBox();
 
+        var x = Math.min(Math.max(-textRect.width/2, -node.x), -textRect.width + (diameter - node.x));
         tooltip
           .attr("y", -textRect.height-20)
           .selectAll("tspan")
-          .attr("x", -textRect.width / 2);
+          .attr("x", x);
 
         tooltipBackground
           .attr("width", textRect.width+10)
           .attr("height", textRect.height+10)
-          .attr("x", textRect.x - textRect.width/2 - 5)
+          .attr("x", textRect.x + x - 5)
           .attr("y", -textRect.height-20);
       }
     }
@@ -286,7 +295,6 @@ var theApp = (function() {
       if (node.children) {
         hideToolTip();
         createTreeMap(repoMap.fullDict[node.breadcrumbs], node.depth+level, margin + node.x - node.r, margin + node.y - node.r, 2 * node.r);
-        rerender();
       } else {
         dispatch({
           type: "SELECT_REPO",
@@ -304,7 +312,7 @@ var theApp = (function() {
     }
 
     var containerWidth = parseFloat(outerSVG.style("width"));
-    var margin = isNarrow ? 5 : containerWidth * (1-Math.pow(0.95,level));
+    var margin = isNarrow ? 5 : 40; // + containerWidth * (1-Math.pow(0.95,level));
     var diameter=containerWidth-2*margin;
     var tooltip;
 
@@ -317,7 +325,6 @@ var theApp = (function() {
       .datum({name: root.name, breadcrumbs: root.breadcrumbs, svgDescription: tooltipText(root)});
 
     if (level > 1) {
-      dispatch({type: "PUSH_MAP", svgDescription: tooltipText(root)});
       innerSVG.attr("class", "innerMap");
 
       // start small and use d3 transition for zoom effect
@@ -351,7 +358,7 @@ var theApp = (function() {
           .attr("r", function(d) {return d.r;})
           .attr("cx", function(d) {return d.x;})
           .attr("cy", function(d) {return d.y;});
-      if (i > 1 && (Date.now() - startTime) > 15) {
+      if (i > 1 && (Date.now() - startTime) > 25) {
         // keep page snappy
         break;
       }
@@ -410,11 +417,13 @@ var theApp = (function() {
         } else {
           // if they touched a new circle, highlight it
           showToolTip(d, d3.select(this));
-          timeoutFnID = setTimeout(function() {addInnerMap(d);}, 500);
+          timeoutFnID = setTimeout(function() {addInnerMap(d);}, 750);
         }
       })
       .on("touchend", function(d) {
         console.log("touch ended", d, d3.event, this);
+        d3.event.preventDefault();
+        d3.event.stopPropagation();
         activeTouches--;
 
         if (timeoutFnID !== null) {
@@ -424,12 +433,19 @@ var theApp = (function() {
       })
       .on("touchcancel", function(d) {
         console.log("touch cancelled", d, d3.event, this);
+        d3.event.preventDefault();
+        d3.event.stopPropagation();
         activeTouches--;
 
         if (timeoutFnID !== null) {
           clearTimeout(timeoutFnID);
           timeoutFnID = null;
         }
+      })
+      .on("touchmove", function(d) {
+        console.log("touch moved", d, d3.event, this);
+        d3.event.preventDefault();
+        d3.event.stopPropagation();
       });
 
     if (level > 1) {
@@ -463,10 +479,23 @@ var theApp = (function() {
           d3.event.stopPropagation();
           d3.event.preventDefault();
           remove();
+        })
+        .on("touchend", function() {
+          d3.event.stopPropagation();
+          d3.event.preventDefault();
+        })
+        .on("touchcancel", function() {
+          d3.event.stopPropagation();
+          d3.event.preventDefault();
+        })
+        .on("touchmove", function() {
+          d3.event.stopPropagation();
+          d3.event.preventDefault();
         });
 
       innerSVG.transition().duration(1000)
         .attr("transform", "translate(" + margin + "," + margin + ")");
+      dispatch({type: "PUSH_MAP", svgDescription: tooltipText(root)});
     }
 
     if (isNarrow) {

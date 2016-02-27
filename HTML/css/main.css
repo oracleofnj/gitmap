@@ -18,27 +18,27 @@
 }
 
 .node.level0 {
-  fill: #0570b0;
+  fill: #034e7b;
 }
 
 .node.level1 {
-  fill: #3690c0;
+  fill: #0570b0;
 }
 
 .node.level2 {
-  fill: #74a9cf;
+  fill: #3690c0;
 }
 
 .node.level3 {
-  fill: #a6bddb;
+  fill: #74a9cf;
 }
 
 .node.level4 {
-  fill: #d0d1e6;
+  fill: #a6bddb;
 }
 
 .node.level5 {
-  fill: #ece7f2;
+  fill: #d0d1e6;
 }
 
 .node--leaf {
@@ -101,6 +101,12 @@
   stroke-width: 2;
   cursor: pointer;
   pointer-events: all;
+}
+
+.mobile-tooltip {
+  font-size: 0.75em;
+  min-height: 3em;
+  text-align: center;
 }
 
 .select2-container--classic .select2-results > .select2-results__options {
