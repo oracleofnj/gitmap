@@ -1,2 +1,2 @@
-# gitrank
-PageRank applied to GitHub contributors
+# gitmap
+Visualization of GitHub Ecosystems and Repo Relationships
