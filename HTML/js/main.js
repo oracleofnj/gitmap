@@ -2,6 +2,7 @@ var theApp = (function() {
   var outerSVG = d3.select("#treemap");
   var isNarrow = outerSVG.node().getBoundingClientRect().width < 500;
   outerSVG.style("height", outerSVG.style("width")); // make square
+  outerSVG.style("width", outerSVG.style("height")); // don't resize
   if (isNarrow) {
     d3.select("#tooltip-text").classed("hidden", false);
     d3.select("#breadcrumb-container").classed("mobile-tooltip", true);
@@ -20,6 +21,10 @@ var theApp = (function() {
     } else {
       return (node.childCount = node.children.map(countChildren).reduce(function(a,b) {return a+b;},0));
     }
+  }
+
+  function getMargin() {
+    return isNarrow ? 5 : 40;
   }
 
   function initSelectBox(rootNode) {
@@ -179,6 +184,11 @@ var theApp = (function() {
               appState.svgStack.push(d.svgDescription);
             }
           });
+          if (appState.svgStack.length === 0) {
+            // show the top-level map if we're only showing the root node
+            var outerNode = d3.select(".depth1.level1."+repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)].sanitizedName).datum();
+            createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)], 2, getMargin() + outerNode.x - outerNode.r, getMargin() + outerNode.y - outerNode.r, 2 * outerNode.r, true);
+          }
         }
         rerender();
         break;
@@ -244,10 +254,21 @@ var theApp = (function() {
         .append("a")
         .text(function(d) {return d.name;})
         .on("click", function(d) { dispatch({type: "SELECT_REPO", byName: false, repoID: d.repoID, pushHistoryEntry: true}); });
+
+      d3.select("#github-link")
+        .attr("href","https://www.github.com/" + repo.name)
+        .select("img")
+        .classed("greyed-out", false);
+    } else {
+      d3.select("#github-link")
+        .attr("href",null)
+        .select("img")
+        .classed("greyed-out", true);
     }
+
   }
 
-  function createTreeMap(root, level, initialLeft, initialTop, initialDiameter) {
+  function createTreeMap(root, level, initialLeft, initialTop, initialDiameter, slowTransition) {
     function showToolTip(node, svgCircle) {
       var repoInfo = tooltipText(node);
       circles.classed("outlined", false);
@@ -300,7 +321,7 @@ var theApp = (function() {
     function addInnerMap(node) {
       if (node.children) {
         hideToolTip();
-        createTreeMap(repoMap.fullDict[node.breadcrumbs], node.depth+level, margin + node.x - node.r, margin + node.y - node.r, 2 * node.r);
+        createTreeMap(repoMap.fullDict[node.breadcrumbs], node.depth+level, margin + node.x - node.r, margin + node.y - node.r, 2 * node.r, false);
       } else {
         dispatch({
           type: "SELECT_REPO",
@@ -318,7 +339,7 @@ var theApp = (function() {
     }
 
     var containerWidth = parseFloat(outerSVG.style("width"));
-    var margin = isNarrow ? 5 : 40; // + containerWidth * (1-Math.pow(0.95,level));
+    var margin = getMargin();
     var diameter=containerWidth-2*margin;
     var tooltip;
 
@@ -499,7 +520,7 @@ var theApp = (function() {
           d3.event.preventDefault();
         });
 
-      innerSVG.transition().duration(1000)
+      innerSVG.transition().duration(slowTransition ? 1750 : 1000)
         .attr("transform", "translate(" + margin + "," + margin + ")");
       dispatch({type: "PUSH_MAP", svgDescription: tooltipText(root)});
     }

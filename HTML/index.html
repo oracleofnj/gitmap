@@ -29,9 +29,18 @@
     <div class="container-fluid">
       <div class="row">
         <div class="col-md-8">
-          <h5 style="width:100%;">
-            <div id="selected-repo-placeholder">Loading data...</div>
-            <select class="hidden" id="selected-repo" style="width:100%;"><option></option></select>
+          <h5 class="row row-eq-height" style="height:32px;">
+            <div class="col-xs-10">
+              <div style="width:100%">
+                <div id="selected-repo-placeholder">Loading data...</div>
+                <select class="hidden" id="selected-repo" style="width:100%;"><option></option></select>
+              </div>
+            </div>
+            <div class="col-xs-2">
+              <a id="github-link">
+                <img src="img/GitHub-Mark-64px.png" height="32px" width="32px" class="github-link greyed-out"/>
+              </a>
+            </div>
           </h5>
           <div id="tooltip-text" class="mobile-tooltip hidden"></div>
           <div class="spinner">

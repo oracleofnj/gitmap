@@ -120,6 +120,10 @@
   transform: scale(1.25,1)
 }
 
+.github-link.greyed-out {
+  opacity: 0.25;
+}
+
 /* https://github.com/tobiasahlin/SpinKit */
 
 .spinner {
