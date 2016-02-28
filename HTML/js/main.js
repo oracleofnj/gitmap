@@ -75,6 +75,7 @@ var theApp = (function() {
         "Github Repository Map" + ((appState.selectedRepoID === null) ? "" : " - " + appState.selectedRepoName)
       );
     }
+    d3.selectAll(".spinner").remove();
     rerender();
   }
 
@@ -208,6 +209,11 @@ var theApp = (function() {
     );
     if (parseInt($sr.val(), 10) !== appState.selectedRepoID) { // really really slow so don't do it if we don't have to
       $sr.val(appState.selectedRepoID).trigger("change");
+      if (appState.selectedRepoID !== null) {
+        d3.select(".select2-selection__clear")
+          .style("font-weight", "normal")
+          .html("X"); // easier to click than &times;
+      }
     }
     if (appState.selectedRepoID) {
       var repo = repoMap.leafList[appState.selectedRepoID];
