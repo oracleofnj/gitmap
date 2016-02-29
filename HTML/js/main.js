@@ -32,13 +32,15 @@ var theApp = (function() {
   outerSVG.style("height", parseFloat(outerSVG.style("height")) - (getMargin() - 5)); // don't need extra space below
 
   function initSelectBox(rootNode) {
+    var unsortedItems = '<option></option>' + repoMap.leafList.map(function(item,i) {return '<option value="' + i + '">' + item.name + '</option>'}).join('');
     $sr = $("#selected-repo");
+    d3.select("#selected-repo").html(unsortedItems); // fastest
     $sr.select2({
       theme: "classic",
       placeholder: "Type or click on the map to select a repository...",
       allowClear: true,
       minimumInputLength: 3,
-      data: getAllChildren(rootNode).sort(function(a,b) {return a.text.localeCompare(b.text);})
+//      data: sortedItems,
     });
     $("#selected-repo-placeholder").addClass("hidden");
     $sr.removeClass("hidden");
@@ -141,9 +143,10 @@ var theApp = (function() {
 
   function addEdges(edges) {
     edges.forEach(function(edge) {
-      if (repoMap.leafDict[edge[0]] && repoMap.leafDict[edge[1]]) {
-        repoMap.edgeList[repoMap.leafDict[edge[0]].repoID].push(repoMap.leafDict[edge[1]]);
-        repoMap.edgeList[repoMap.leafDict[edge[1]].repoID].push(repoMap.leafDict[edge[0]]);
+      var source = repoMap.leafDict[edge[0]], target = repoMap.leafDict[edge[1]];
+      if (source && target) {
+        repoMap.edgeList[source.repoID].push(target);
+        repoMap.edgeList[target.repoID].push(source);
       }
     });
   }
@@ -365,7 +368,7 @@ var theApp = (function() {
     var pack = d3.layout.pack()
         .padding(3)
         .size([diameter, diameter])
-        .value(function() {return 1;});
+        .value(function(d) {return d.childCount;});
 
     var innerSVG = outerSVG.append("g")
       .datum({name: root.name, breadcrumbs: root.breadcrumbs, svgDescription: tooltipText(root)});
