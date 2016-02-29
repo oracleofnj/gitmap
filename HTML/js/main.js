@@ -29,26 +29,36 @@ var theApp = (function() {
     return isNarrow ? 5 : 40;
   }
 
-  outerSVG.style("height", parseFloat(outerSVG.style("height")) - (getMargin() - 5)); // don't need extra space below
+  outerSVG.style("height", (parseFloat(outerSVG.style("height")) - (getMargin() - 5))+"px"); // don't need extra space below
 
   function initSelectBox(rootNode) {
-    var unsortedItems = '<option></option>' + repoMap.leafList.map(function(item,i) {return '<option value="' + i + '">' + item.name + '</option>'}).join('');
     $sr = $("#selected-repo");
-    d3.select("#selected-repo").html(unsortedItems); // fastest
-    $sr.select2({
-      theme: "classic",
-      placeholder: "Type or click on the map to select a repository...",
-      allowClear: true,
-      minimumInputLength: 3,
-//      data: sortedItems,
-    });
+    if ($('html').is('.eq-ie9')) {
+      $sr.select2({
+        theme: "classic",
+        placeholder: "Type or click on the map to select a repository...",
+        allowClear: true,
+        minimumInputLength: 3,
+        data: getAllChildren(rootNode),
+      });
+    } else {
+      var unsortedItems = '<option></option>' + repoMap.leafList.map(function(item,i) {return '<option value="' + i + '">' + item.name + '</option>'}).join('');
+      d3.select("#selected-repo").html(unsortedItems); // fastest
+      $sr.select2({
+        theme: "classic",
+        placeholder: "Type or click on the map to select a repository...",
+        allowClear: true,
+        minimumInputLength: 3,
+  //      data: getAllChildren(rootNode),
+      });
+    }
     $("#selected-repo-placeholder").addClass("hidden");
     $sr.removeClass("hidden");
     $sr.on("change", function() {
       dispatch({
         type: "SELECT_REPO",
         byName: false,
-        repoID: ($sr.val() === "") ? null : parseInt($sr.val(), 10),
+        repoID: ($sr.val() === null || $sr.val() === "") ? null : parseInt($sr.val(), 10),
         pushHistoryEntry: true
       });
       if (appState.selectedRepoID !== null) {
@@ -185,7 +195,7 @@ var theApp = (function() {
         appState.svgStack = [];
         d3.selectAll(".innerMap").each(function(d) {
           if (appState.selectedRepoID === null || !isBreadcrumbPrefix(d.breadcrumbs, repoMap.leafList[appState.selectedRepoID].breadcrumbs)) {
-            this.remove();
+            d3.select(this).remove();
           } else {
             appState.svgStack.push(d.svgDescription);
           }
@@ -573,6 +583,9 @@ var theApp = (function() {
 
 $(document).ready(function () {
   "use strict";
+  if ($("html").is(".lt-ie9")) {
+    return;
+  }
 
   d3_queue.queue(2)
     .defer(d3.json, "data/gitmap.json")
