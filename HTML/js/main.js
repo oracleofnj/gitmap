@@ -1,4 +1,5 @@
 var theApp = (function() {
+  "use strict";
   var outerSVG = d3.select("#treemap");
   var legend;
   var isNarrow = outerSVG.node().getBoundingClientRect().width < 500;
@@ -106,7 +107,7 @@ var theApp = (function() {
     var otherChildCounts = node.children
       .filter(function(child) {return child.name != node.name;})
       .map(function(x) {return [x.name, countChildren(x)];})
-      .sort(function(a, b) {return b[1] - a[1]})
+      .sort(function(a, b) {return b[1] - a[1];})
       .slice(0,(node.breadcrumbs.length === 1) ? 3 : 2);
     res = res.concat(otherChildCounts.map(function(x) {return x[0];}));
     if (totalChildren > res.length) {
@@ -155,6 +156,7 @@ var theApp = (function() {
 
   function dispatch(action) {
     // moving towards a Redux-inspired single source of truth, but mutate the state for now
+    var stackTop, outerNode;
     switch(action.type) {
       case "SELECT_REPO":
         if ((action.byName && (appState.selectedRepoName === action.repoName)) ||
@@ -187,7 +189,7 @@ var theApp = (function() {
         });
         if (appState.svgStack.length === 0 && appState.selectedRepoID !== null) {
           // show the top-level map if we're only showing the root node
-          var outerNode = d3.select(".depth1.level1."+repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)].sanitizedName).datum();
+          outerNode = d3.select(".depth1.level1."+repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)].sanitizedName).datum();
           createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)], 2, getMargin() + outerNode.x - outerNode.r, getMargin() + outerNode.y - outerNode.r, 2 * outerNode.r, true);
         }
         rerender();
@@ -197,7 +199,7 @@ var theApp = (function() {
         rerender();
         break;
       case "POP_MAP":
-        var stackTop = appState.svgStack.pop();
+        stackTop = appState.svgStack.pop();
         if (!action.svgDescription.every(function(e,i) {return e === stackTop[i];})) {
           console.log("Something weird happened with the stack...");
           console.log("Top of stack: ", stackTop);
@@ -212,14 +214,15 @@ var theApp = (function() {
 
   function rerender() {
     function makeLink(repoName) {
-      if (!(/^\.\.\.and \d+ more$/.test(repoName))) {
+      if (!(/^\.\.\.and\ \d+\ more$/.test(repoName))) {
         return '<a class="internal-link" style="cursor:pointer;">' + repoName + '</a>';
       } else {
         return repoName;
       }
     }
+
     d3.selectAll(".node.selected")
-      .classed("selected", false)
+      .classed("selected", false);
     d3.selectAll(".node.related")
       .classed("related", false);
     d3.select("#related-repos").selectAll(".related-repo").remove();
@@ -566,17 +569,13 @@ var theApp = (function() {
 })();
 
 $(document).ready(function () {
-  var edges, nodes, edgesPerNode = {}, starcounts, nodeDict;
+  "use strict";
 
   d3_queue.queue(2)
     .defer(d3.json, "data/gitmap.json")
     .awaitAll(function(error, results) {
       if (error) throw error;
 
-      repoTree = results[0].tree;
-      edges = results[0].links;
-
-      theApp.initApp(repoTree, edges);
-
+      theApp.initApp(results[0].tree, results[0].links);
   });
 });
