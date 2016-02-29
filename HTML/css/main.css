@@ -92,6 +92,10 @@
 }
 
 .related-repo {
+  margin-bottom: 5px;
+}
+
+.related-repo-link {
   cursor: pointer;
 }
 

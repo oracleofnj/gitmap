@@ -32,26 +32,28 @@ var theApp = (function() {
   outerSVG.style("height", (parseFloat(outerSVG.style("height")) - (getMargin() - 5))+"px"); // don't need extra space below
 
   function initSelectBox(rootNode) {
+    function template(d) {
+      if (d.id !== "") {
+        return $('<span><svg width=15 height=10><circle class="legend--leaf selected" cx=5 cy=5 r=5></circle></svg>' + d.text + '</span>');
+      } else {
+        return d.text;
+      }
+    }
     $sr = $("#selected-repo");
+    var s2config = {
+      theme: "classic",
+      placeholder: "Type here or explore the map...",
+      allowClear: true,
+      minimumInputLength: 3,
+      templateSelection: template,
+    };
     if ($('html').is('.eq-ie9')) {
-      $sr.select2({
-        theme: "classic",
-        placeholder: "Type or click on the map to select a repository...",
-        allowClear: true,
-        minimumInputLength: 3,
-        data: getAllChildren(rootNode),
-      });
+      s2config.data = getAllChildren(rootNode);
     } else {
       var unsortedItems = '<option></option>' + repoMap.leafList.map(function(item,i) {return '<option value="' + i + '">' + item.name + '</option>'}).join('');
-      d3.select("#selected-repo").html(unsortedItems); // fastest
-      $sr.select2({
-        theme: "classic",
-        placeholder: "Type or click on the map to select a repository...",
-        allowClear: true,
-        minimumInputLength: 3,
-  //      data: getAllChildren(rootNode),
-      });
+      d3.select("#selected-repo").html(unsortedItems); // fastest, doesn't work on IE9
     }
+    $sr.select2(s2config);
     $("#selected-repo-placeholder").addClass("hidden");
     $sr.removeClass("hidden");
     $sr.on("change", function() {
@@ -279,7 +281,11 @@ var theApp = (function() {
         .data(reposByOtherOwner.sort(function(a,b) { return a.name.localeCompare(b.name); }))
         .enter().append("p").attr("class", "related-repo other-owner");
       d3.select("#related-repos").selectAll(".related-repo")
+        .append("svg").attr("width",15).attr("height",10)
+        .append("circle").attr("class","legend--leaf related").attr("cx",5).attr("cy",5).attr("r",5);
+      d3.select("#related-repos").selectAll(".related-repo")
         .append("a")
+        .attr("class","related-repo-link")
         .text(function(d) {return d.name;})
         .on("click", function(d) { dispatch({type: "SELECT_REPO", byName: false, repoID: d.repoID, pushHistoryEntry: true}); });
 
@@ -287,15 +293,17 @@ var theApp = (function() {
         .attr("href","https://www.github.com/" + repo.name)
         .select("img")
         .classed("greyed-out", false);
-      d3.selectAll(".graph-legend." + (isNarrow ? "narrow" : "wide"))
-        .classed("hidden", false);
+      // superseded by small circles
+      // d3.selectAll(".graph-legend." + (isNarrow ? "narrow" : "wide"))
+      //   .classed("hidden", false);
     } else {
       d3.select("#github-link")
         .attr("href",null)
         .select("img")
         .classed("greyed-out", true);
-      d3.selectAll(".graph-legend")
-        .classed("hidden", true);
+      // superseded by small circles
+      // d3.selectAll(".graph-legend")
+      //   .classed("hidden", true);
     }
   }
 
