@@ -1,5 +1,6 @@
 var theApp = (function() {
   var outerSVG = d3.select("#treemap");
+  var legend;
   var isNarrow = outerSVG.node().getBoundingClientRect().width < 500;
   outerSVG.style("height", outerSVG.style("width")); // make square
   outerSVG.style("width", outerSVG.style("height")); // don't resize
@@ -26,6 +27,8 @@ var theApp = (function() {
   function getMargin() {
     return isNarrow ? 5 : 40;
   }
+
+  outerSVG.style("height", parseFloat(outerSVG.style("height")) - (getMargin() - 5)); // don't need extra space below
 
   function initSelectBox(rootNode) {
     $sr = $("#selected-repo");
@@ -151,7 +154,7 @@ var theApp = (function() {
   }
 
   function dispatch(action) {
-    // Redux-inspired single source of truth, but mutate the state for now
+    // moving towards a Redux-inspired single source of truth, but mutate the state for now
     switch(action.type) {
       case "SELECT_REPO":
         if ((action.byName && (appState.selectedRepoName === action.repoName)) ||
@@ -174,21 +177,18 @@ var theApp = (function() {
             (appState.selectedRepoID === null) ? window.location.pathname : ("#!" + appState.selectedRepoName)
           );
         }
-        if (appState.selectedRepoID !== null) {
-          // delete the maps that aren't in the selection breadcrumbs
-          appState.svgStack = [];
-          d3.selectAll(".innerMap").each(function(d) {
-            if (!isBreadcrumbPrefix(d.breadcrumbs, repoMap.leafList[appState.selectedRepoID].breadcrumbs)) {
-              this.remove();
-            } else {
-              appState.svgStack.push(d.svgDescription);
-            }
-          });
-          if (appState.svgStack.length === 0) {
-            // show the top-level map if we're only showing the root node
-            var outerNode = d3.select(".depth1.level1."+repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)].sanitizedName).datum();
-            createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)], 2, getMargin() + outerNode.x - outerNode.r, getMargin() + outerNode.y - outerNode.r, 2 * outerNode.r, true);
+        appState.svgStack = [];
+        d3.selectAll(".innerMap").each(function(d) {
+          if (appState.selectedRepoID === null || !isBreadcrumbPrefix(d.breadcrumbs, repoMap.leafList[appState.selectedRepoID].breadcrumbs)) {
+            this.remove();
+          } else {
+            appState.svgStack.push(d.svgDescription);
           }
+        });
+        if (appState.svgStack.length === 0 && appState.selectedRepoID !== null) {
+          // show the top-level map if we're only showing the root node
+          var outerNode = d3.select(".depth1.level1."+repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)].sanitizedName).datum();
+          createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)], 2, getMargin() + outerNode.x - outerNode.r, getMargin() + outerNode.y - outerNode.r, 2 * outerNode.r, true);
         }
         rerender();
         break;
@@ -211,17 +211,29 @@ var theApp = (function() {
   }
 
   function rerender() {
+    function makeLink(repoName) {
+      if (!(/^\.\.\.and \d+ more$/.test(repoName))) {
+        return '<a class="internal-link" style="cursor:pointer;">' + repoName + '</a>';
+      } else {
+        return repoName;
+      }
+    }
     d3.selectAll(".node.selected")
       .classed("selected", false)
     d3.selectAll(".node.related")
       .classed("related", false);
     d3.select("#related-repos").selectAll(".related-repo").remove();
     d3.select("#related-repo-header").html("Select a repository to find related repos");
-    d3.select("#breadcrumbs").html("Displaying: " +
-      ((appState.svgStack.length > 0) ?
-      appState.svgStack[appState.svgStack.length - 1].join(", ") :
-      tooltipText(repoMap.rootNode).join(", "))
-    );
+    d3.select("#breadcrumbs")
+      .html("Displaying: " +
+        ((appState.svgStack.length > 0) ?
+        appState.svgStack[appState.svgStack.length - 1].map(makeLink).join(", ") :
+        tooltipText(repoMap.rootNode).map(makeLink).join(", "))
+      )
+      .selectAll(".internal-link")
+      .on("click", function() {
+        dispatch({type: "SELECT_REPO", byName: true, repoName: d3.select(this).text(), pushHistoryEntry: true});
+      });
     if (parseInt($sr.val(), 10) !== appState.selectedRepoID) { // really really slow so don't do it if we don't have to
       $sr.val(appState.selectedRepoID).trigger("change");
     }
@@ -259,13 +271,16 @@ var theApp = (function() {
         .attr("href","https://www.github.com/" + repo.name)
         .select("img")
         .classed("greyed-out", false);
+      d3.selectAll(".graph-legend." + (isNarrow ? "narrow" : "wide"))
+        .classed("hidden", false);
     } else {
       d3.select("#github-link")
         .attr("href",null)
         .select("img")
         .classed("greyed-out", true);
+      d3.selectAll(".graph-legend")
+        .classed("hidden", true);
     }
-
   }
 
   function createTreeMap(root, level, initialLeft, initialTop, initialDiameter, slowTransition) {
@@ -279,6 +294,7 @@ var theApp = (function() {
       } else {
         tooltip.selectAll("tspan").remove();
         if ((node.y - node.r) < 60) {
+          // tooltip will overflow to the top
           repoInfo = [repoInfo.join(", ")]; // collapse to one line
         }
         tooltip.selectAll("tspan")

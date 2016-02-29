@@ -8,7 +8,7 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
         <title>GitHub Repository Map</title>
         <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
         <link rel="stylesheet" href="css/bootstrap.min.css">
@@ -30,16 +30,16 @@
       <div class="row">
         <div class="col-md-8">
           <h5 class="row row-eq-height" style="height:32px;">
-            <div class="col-xs-10">
+            <div class="col-xs-2 col-sm-1">
+              <a id="github-link" title="View on GitHub">
+                <img alt="View on GitHub" src="img/GitHub-Mark-64px.png" height="32px" width="32px" class="github-link greyed-out"/>
+              </a>
+            </div>
+            <div class="col-xs-10 col-sm-11">
               <div style="width:100%">
                 <div id="selected-repo-placeholder">Loading data...</div>
                 <select class="hidden" id="selected-repo" style="width:100%;"><option></option></select>
               </div>
-            </div>
-            <div class="col-xs-2">
-              <a id="github-link">
-                <img src="img/GitHub-Mark-64px.png" height="32px" width="32px" class="github-link greyed-out"/>
-              </a>
             </div>
           </h5>
           <div id="tooltip-text" class="mobile-tooltip hidden"></div>
@@ -47,7 +47,20 @@
             <div class="dot1"></div>
             <div class="dot2"></div>
           </div>
-          <svg id="treemap" width="100%"></svg>
+          <svg id="treemap" width="100%">
+            <g class="graph-legend wide hidden">
+              <circle class="legend--leaf selected" cx=15 cy=20 r=5></circle>
+              <text x=25 y=25>Selected Repo</text>
+              <circle class="legend--leaf related" cx=15 cy=40 r=5></circle>
+              <text x=25 y=45>Related Repos</text>
+            </g>
+            <g class="graph-legend narrow hidden">
+              <circle class="legend--leaf selected" cx=5 cy=10 r=5></circle>
+              <text x=15 y=15 font-size=0.75em>Selected</text>
+              <circle class="legend--leaf related" cx=5 cy=30 r=5></circle>
+              <text x=15 y=35 font-size=0.75em>Related</text>
+            </g>
+          </svg>
           <p id="breadcrumb-container" style="text-align:center">
             <span id="breadcrumbs"></span>
           </p>

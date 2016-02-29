@@ -45,22 +45,26 @@
   fill: white;
 }
 
-.node.related {
+.node.related,.legend.related {
   stroke: #BC6997;
   stroke-width: 1px;
 }
 
-.node--leaf.related {
+.node--leaf.related,.legend--leaf.related {
   fill: #BC6997;
 }
 
-.node.selected {
+.node.selected,.legend.selected {
   stroke: #FFBF20;
   stroke-width: 1.5px;
 }
 
-.node--leaf.selected {
+.node--leaf.selected,.legend--leaf.selected {
   fill: #FFBF20;
+}
+
+.legend {
+  fill: transparent;
 }
 
 .node.outlined {
