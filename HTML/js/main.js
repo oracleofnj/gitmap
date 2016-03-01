@@ -184,7 +184,7 @@ var theApp = (function() {
 
   function dispatch(action) {
     // moving towards a Redux-inspired single source of truth, but mutate the state for now
-    var stackTop, outerNode, datum, createFromLevel;
+    var stackTop, outerNode, datum, createFromLevel, alreadyRendered = false;
     switch(action.type) {
       case "SELECT_REPO":
         if ((!action.createFromLevel) && ((action.byName && (appState.selectedRepoName === action.repoName)) ||
@@ -223,9 +223,12 @@ var theApp = (function() {
           if (outerNode[0][0] !== null) {
             datum = outerNode.datum();
             createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)], 1+createFromLevel, getMargin() + datum.x - datum.r, (isNarrow ? 0 : getMargin()) + datum.y - datum.r, 2 * datum.r, true);
+            alreadyRendered = true;
           };
         }
-        rerender();
+        if (!alreadyRendered) {
+          rerender();
+        }
         break;
       case "PUSH_MAP":
         appState.svgStack.push({breadcrumbs: action.svgDescription, level: action.level});
