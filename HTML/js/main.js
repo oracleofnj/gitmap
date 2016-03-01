@@ -3,8 +3,9 @@ var theApp = (function() {
   var outerSVG = d3.select("#treemap");
   var legend;
   var isNarrow = outerSVG.node().getBoundingClientRect().width < 500;
-  outerSVG.style("height", outerSVG.style("width")); // make square
-  outerSVG.style("width", outerSVG.style("height")); // don't resize
+  outerSVG.style("height", (parseFloat(outerSVG.style("width")) - getMargin() * (isNarrow ? 2 : 1))+"px"); // make square
+  outerSVG.style("width", outerSVG.style("width"));
+  outerSVG.attr("width", null); // don't resize
   if (isNarrow) {
     d3.select("#tooltip-text").classed("hidden", false);
     d3.select("#breadcrumb-container").classed("mobile-tooltip", true);
@@ -19,6 +20,7 @@ var theApp = (function() {
       //   return '<svg aria-hidden="true" class="octicon octicon-star" height="24" role="img" version="1.1" viewBox="0 0 14 16" width="21"><path d="M14 6l-4.9-0.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14l4.33-2.33 4.33 2.33L10.4 9.26 14 6z"></path></svg>';
       // case 'fork':
       //   return '<svg aria-hidden="true" class="octicon octicon-repo-forked" height="24" role="img" version="1.1" viewBox="0 0 10 16" width="15"><path d="M8 1c-1.11 0-2 0.89-2 2 0 0.73 0.41 1.38 1 1.72v1.28L5 8 3 6v-1.28c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2S0 1.89 0 3c0 0.73 0.41 1.38 1 1.72v1.78l3 3v1.78c-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72V9.5l3-3V4.72c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2zM2 4.2c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3 10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3-10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z"></path></svg>';
+      // never mind for now
       default:
         return '<span class="octicon octicon-' + iconType + '"></span>';
     }
@@ -37,10 +39,10 @@ var theApp = (function() {
   }
 
   function getMargin() {
-    return isNarrow ? 5 : 40;
+    return isNarrow ? 25 : 40;
   }
 
-  outerSVG.style("height", (parseFloat(outerSVG.style("height")) - (getMargin() - 5))+"px"); // don't need extra space below
+//  outerSVG.style("height", (parseFloat(outerSVG.style("height")) - (getMargin() - 5))+"px"); // don't need extra space below
 
   function initSelectBox(rootNode) {
     function template(d) {
@@ -220,7 +222,7 @@ var theApp = (function() {
           outerNode = d3.select(".depth1.level" + createFromLevel + "." + repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)].sanitizedName);
           if (outerNode[0][0] !== null) {
             datum = outerNode.datum();
-            createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)], 1+createFromLevel, getMargin() + datum.x - datum.r, getMargin() + datum.y - datum.r, 2 * datum.r, true);
+            createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)], 1+createFromLevel, getMargin() + datum.x - datum.r, (isNarrow ? 0 : getMargin()) + datum.y - datum.r, 2 * datum.r, true);
           };
         }
         rerender();
@@ -459,7 +461,7 @@ var theApp = (function() {
     function addInnerMap(node) {
       if (node.children) {
         hideToolTip();
-        createTreeMap(repoMap.fullDict[node.breadcrumbs], node.depth+level, margin + node.x - node.r, margin + node.y - node.r, 2 * node.r, false);
+        createTreeMap(repoMap.fullDict[node.breadcrumbs], node.depth+level, margin + node.x - node.r, (isNarrow ? 0 : margin) + node.y - node.r, 2 * node.r, false);
       } else {
         dispatch({
           type: "SELECT_REPO",
@@ -498,7 +500,7 @@ var theApp = (function() {
                           + " scale(" + initialDiameter / diameter + ")");
     } else {
       // start full size
-      innerSVG.attr("transform","translate(" + margin + "," + margin + ")");
+      innerSVG.attr("transform","translate(" + margin + "," + (isNarrow ? 0 : margin) + ")");
     }
 
     innerSVG.append("rect") // block mouse events
@@ -659,7 +661,7 @@ var theApp = (function() {
         });
 
       innerSVG.transition().duration(slowTransition ? 1750 : 1000)
-        .attr("transform", "translate(" + margin + "," + margin + ")");
+        .attr("transform", "translate(" + margin + "," + (isNarrow ? 0 : margin) + ")");
       dispatch({type: "PUSH_MAP", svgDescription: tooltipText(root), level: level});
     }
 
