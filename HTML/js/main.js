@@ -1,7 +1,6 @@
 var theApp = (function() {
   "use strict";
   var outerSVG = d3.select("#treemap");
-  var legend;
   var isNarrow = outerSVG.node().getBoundingClientRect().width < 500;
   outerSVG.style("height", (parseFloat(outerSVG.style("width")) - getMargin() * (isNarrow ? 2 : 1))+"px"); // make square
   outerSVG.style("width", outerSVG.style("width"));
@@ -63,7 +62,7 @@ var theApp = (function() {
     if ($('html').is('.eq-ie9')) {
       s2config.data = getAllChildren(rootNode);
     } else {
-      var unsortedItems = '<option></option>' + repoMap.leafList.map(function(item,i) {return '<option value="' + i + '">' + item.name + '</option>'}).join('');
+      var unsortedItems = '<option></option>' + repoMap.leafList.map(function(item,i) {return '<option value="' + i + '">' + item.name + '</option>';}).join('');
       d3.select("#selected-repo").html(unsortedItems); // fastest, doesn't work on IE9
     }
     $sr.select2(s2config);
@@ -224,7 +223,7 @@ var theApp = (function() {
             datum = outerNode.datum();
             createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)], 1+createFromLevel, getMargin() + datum.x - datum.r, (isNarrow ? 0 : getMargin()) + datum.y - datum.r, 2 * datum.r, true);
             alreadyRendered = true;
-          };
+          }
         }
         if (!alreadyRendered) {
           rerender();
@@ -355,7 +354,7 @@ var theApp = (function() {
       if (appState.githubAPIBroken) {
         if (appState.rateLimitExceeded) {
           d3.select("#github-description").text("I'm glad you're enjoying this! You've exceeded GitHub's API rate limit (60/hr) but you can keep using the app.");
-        };
+        }
       } else {
         if (!repo.githubDetails) {
           if (!appState.rateLimitExceeded && !repo.githubDetailsRequested) {
@@ -365,7 +364,7 @@ var theApp = (function() {
                 repo.githubDetailsRequested = false;
                 if (error.response) {
                   try {
-                    msgObj = JSON.parse(error.response)
+                    msgObj = JSON.parse(error.response);
                     if (msgObj.message && /^API\ rate\ limit\ exceeded/.test(msgObj.message)) {
                       dispatch({type: "OVER_RATE_LIMIT"});
                       setTimeout(function() { dispatch({type: "RATE_LIMIT_RESET"}); }, 600000); // try again in 10 minutes
@@ -394,7 +393,7 @@ var theApp = (function() {
           d3.select("#github-avatar").select("img").attr("src",repo.githubDetails.owner.avatar_url).classed("hidden", false);
           d3.select("#github-starcount").html(octicon('star') + '&nbsp;' + repo.githubDetails.stargazers_count.toLocaleString());
           d3.select("#github-forkcount").html(octicon('repo-forked') + '&nbsp;' + repo.githubDetails.forks_count.toLocaleString());
-        };
+        }
       }
       // superseded by small circles
       // d3.selectAll(".graph-legend." + (isNarrow ? "narrow" : "wide"))
@@ -499,8 +498,8 @@ var theApp = (function() {
 
       // start small and use d3 transition for zoom effect
       innerSVG
-        .attr("transform","translate(" + initialLeft + "," + initialTop + ")"
-                          + " scale(" + initialDiameter / diameter + ")");
+        .attr("transform","translate(" + initialLeft + "," + initialTop + ")" +
+                          " scale(" + initialDiameter / diameter + ")");
     } else {
       // start full size
       innerSVG.attr("transform","translate(" + margin + "," + (isNarrow ? 0 : margin) + ")");
