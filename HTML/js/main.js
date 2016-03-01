@@ -10,7 +10,7 @@ var theApp = (function() {
     d3.select("#breadcrumb-container").classed("mobile-tooltip", true);
   }
   var repoMap = {fullDict: {}, leafList: [], leafDict: {}, edgeList: []};
-  var appState = {selectedRepoID: null, selectedRepoName: "", svgStack: []};
+  var appState = {selectedRepoID: null, selectedRepoName: "", svgStack: [], rateLimitExceeded: false};
   var $sr;
 
   function countChildren(node) {
@@ -222,6 +222,20 @@ var theApp = (function() {
         }
         rerender();
         break;
+      case "OVER_RATE_LIMIT":
+        appState.githubAPIBroken = true;
+        appState.rateLimitExceeded = true;
+        rerender();
+        break;
+      case "RATE_LIMIT_RESET":
+        appState.githubAPIBroken = false;
+        appState.rateLimitExceeded = false;
+        rerender();
+        break;
+      case "GITHUB_API_BROKEN":
+        appState.githubAPIBroken = true;
+        rerender();
+        break;
       default:
         throw "Unknown action";
     }
@@ -230,7 +244,7 @@ var theApp = (function() {
   function rerender() {
     function makeLink(repoName) {
       if (!(/^\.\.\.and\ \d+\ more$/.test(repoName))) {
-        return '<a class="internal-link" style="cursor:pointer;">' + repoName + '</a>';
+        return '<a href="#!' + repoName + '" class="internal-link" style="cursor:pointer;">' + repoName + '</a>';
       } else {
         return repoName;
       }
@@ -242,6 +256,10 @@ var theApp = (function() {
       .classed("related", false);
     d3.select("#related-repos").selectAll(".related-repo").remove();
     d3.select("#related-repo-header").html("Select a repository to find related repos");
+    d3.select("#github-description").text("");
+    d3.select("#github-avatar").select("img").classed("hidden", true);
+    d3.select("#github-starcount").html("");
+    d3.select("#github-forkcount").html("");
     d3.select("#breadcrumbs")
       .html("Displaying: " +
         ((appState.svgStack.length > 0) ?
@@ -250,6 +268,8 @@ var theApp = (function() {
       )
       .selectAll(".internal-link")
       .on("click", function() {
+        d3.event.preventDefault();
+        d3.event.stopPropagation();
         dispatch({type: "SELECT_REPO", byName: true, repoName: d3.select(this).text(), pushHistoryEntry: true});
       });
     if (parseInt($sr.val(), 10) !== appState.selectedRepoID) { // really really slow so don't do it if we don't have to
@@ -286,18 +306,66 @@ var theApp = (function() {
       d3.select("#related-repos").selectAll(".related-repo")
         .append("a")
         .attr("class","related-repo-link")
+        .attr("href",function(d) { return "#!"+ d.name; })
         .text(function(d) {return d.name;})
-        .on("click", function(d) { dispatch({type: "SELECT_REPO", byName: false, repoID: d.repoID, pushHistoryEntry: true}); });
+        .on("click", function(d) {
+          d3.event.preventDefault();
+          d3.event.stopPropagation();
+          dispatch({type: "SELECT_REPO", byName: false, repoID: d.repoID, pushHistoryEntry: true});
+        });
 
-      d3.select("#github-link")
+      d3.selectAll(".github-link")
         .attr("href","https://www.github.com/" + repo.name)
         .select("img")
         .classed("greyed-out", false);
+
+      if (appState.githubAPIBroken) {
+        if (appState.rateLimitExceeded) {
+          d3.select("#github-description").text("I'm glad you're enjoying this! You've exceeded GitHub's API rate limit (60/hr) but you can keep using the app.");
+        };
+      } else {
+        if (!repo.githubDetails) {
+          if (!appState.rateLimitExceeded) {
+            d3.json("https://api.github.com/repos/" + repo.name, function(error, json) {
+              var msgObj;
+              if (error) {
+                if (error.response) {
+                  try {
+                    msgObj = JSON.parse(error.response)
+                    if (msgObj.message && /^API\ rate\ limit\ exceeded/.test(msgObj.message)) {
+                      dispatch({type: "OVER_RATE_LIMIT"});
+                      setTimeout(function() { dispatch({type: "RATE_LIMIT_RESET"}); }, 600000); // try again in 10 minutes
+                    } else {
+                      console.log(error, msgObj);
+                      dispatch({type: "GITHUB_API_BROKEN"});
+                    }
+                  }
+                  catch (e) {
+                    console.log(error, error.response, e);
+                    dispatch({type: "GITHUB_API_BROKEN"});
+                  }
+                } else {
+                  console.log("Error with no response: ", error);
+                  dispatch({type: "GITHUB_API_BROKEN"});
+                }
+              } else {
+                repo.githubDetails = json;
+                rerender();
+              }
+            });
+          }
+        } else {
+          d3.select("#github-description").text(repo.githubDetails.description);
+          d3.select("#github-avatar").select("img").attr("src",repo.githubDetails.owner.avatar_url).classed("hidden", false);
+          d3.select("#github-starcount").html('<span class="octicon octicon-star"></span>&nbsp;' + repo.githubDetails.stargazers_count.toLocaleString());
+          d3.select("#github-forkcount").html('<span class="octicon octicon-git-branch"></span>&nbsp;' + repo.githubDetails.forks_count.toLocaleString());
+        };
+      }
       // superseded by small circles
       // d3.selectAll(".graph-legend." + (isNarrow ? "narrow" : "wide"))
       //   .classed("hidden", false);
     } else {
-      d3.select("#github-link")
+      d3.selectAll(".github-link")
         .attr("href",null)
         .select("img")
         .classed("greyed-out", true);
