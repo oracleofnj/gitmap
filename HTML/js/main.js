@@ -13,6 +13,17 @@ var theApp = (function() {
   var appState = {selectedRepoID: null, selectedRepoName: "", svgStack: [], rateLimitExceeded: false};
   var $sr;
 
+  function octicon(iconType) {
+    switch(iconType) {
+      // case 'star':
+      //   return '<svg aria-hidden="true" class="octicon octicon-star" height="24" role="img" version="1.1" viewBox="0 0 14 16" width="21"><path d="M14 6l-4.9-0.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14l4.33-2.33 4.33 2.33L10.4 9.26 14 6z"></path></svg>';
+      // case 'fork':
+      //   return '<svg aria-hidden="true" class="octicon octicon-repo-forked" height="24" role="img" version="1.1" viewBox="0 0 10 16" width="15"><path d="M8 1c-1.11 0-2 0.89-2 2 0 0.73 0.41 1.38 1 1.72v1.28L5 8 3 6v-1.28c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2S0 1.89 0 3c0 0.73 0.41 1.38 1 1.72v1.78l3 3v1.78c-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72V9.5l3-3V4.72c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2zM2 4.2c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3 10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3-10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z"></path></svg>';
+      default:
+        return '<span class="octicon octicon-' + iconType + '"></span>';
+    }
+  }
+
   function countChildren(node) {
     if (node.childCount) {
       // memoize
@@ -357,8 +368,8 @@ var theApp = (function() {
         } else {
           d3.select("#github-description").text(repo.githubDetails.description);
           d3.select("#github-avatar").select("img").attr("src",repo.githubDetails.owner.avatar_url).classed("hidden", false);
-          d3.select("#github-starcount").html('<span class="octicon octicon-star"></span>&nbsp;' + repo.githubDetails.stargazers_count.toLocaleString());
-          d3.select("#github-forkcount").html('<span class="octicon octicon-git-branch"></span>&nbsp;' + repo.githubDetails.forks_count.toLocaleString());
+          d3.select("#github-starcount").html(octicon('star') + '&nbsp;' + repo.githubDetails.stargazers_count.toLocaleString());
+          d3.select("#github-forkcount").html(octicon('repo-forked') + '&nbsp;' + repo.githubDetails.forks_count.toLocaleString());
         };
       }
       // superseded by small circles
@@ -493,7 +504,7 @@ var theApp = (function() {
           .attr("r", function(d) {return d.r;})
           .attr("cx", function(d) {return d.x;})
           .attr("cy", function(d) {return d.y;});
-      if (i > 1 && (Date.now() - startTime) > 25) {
+      if (((i > 2) || (isNarrow && i > 1)) && (Date.now() - startTime) > 25) {
         // keep page snappy
         break;
       }
