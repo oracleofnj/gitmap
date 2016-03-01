@@ -182,11 +182,11 @@ var theApp = (function() {
 
   function dispatch(action) {
     // moving towards a Redux-inspired single source of truth, but mutate the state for now
-    var stackTop, outerNode, createFromLevel;
+    var stackTop, outerNode, datum, createFromLevel;
     switch(action.type) {
       case "SELECT_REPO":
-        if ((action.byName && (appState.selectedRepoName === action.repoName)) ||
-            (!action.byName && (appState.selectedRepoID === action.repoID))) {
+        if ((!action.createFromLevel) && ((action.byName && (appState.selectedRepoName === action.repoName)) ||
+            (!action.byName && (appState.selectedRepoID === action.repoID)))) {
             // already selected, exit
               break;
         }
@@ -217,8 +217,11 @@ var theApp = (function() {
           // show the top-level map if we're only showing the root node,
           // or show the next-level map if we've been asked to
           createFromLevel = action.createFromLevel || 1;
-          outerNode = d3.select(".depth1.level" + createFromLevel + "." + repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)].sanitizedName).datum();
-          createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)], 1+createFromLevel, getMargin() + outerNode.x - outerNode.r, getMargin() + outerNode.y - outerNode.r, 2 * outerNode.r, true);
+          outerNode = d3.select(".depth1.level" + createFromLevel + "." + repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)].sanitizedName);
+          if (outerNode[0][0] !== null) {
+            datum = outerNode.datum();
+            createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)], 1+createFromLevel, getMargin() + datum.x - datum.r, getMargin() + datum.y - datum.r, 2 * datum.r, true);
+          };
         }
         rerender();
         break;
@@ -255,6 +258,7 @@ var theApp = (function() {
   }
 
   function rerender() {
+    // console.log(appState);
     function makeLink(repoName) {
       if (!(/^\.\.\.and\ \d+\ more$/.test(repoName))) {
         return '<a href="#!' + repoName + '" class="internal-link" style="cursor:pointer;">' + repoName + '</a>';
@@ -272,10 +276,8 @@ var theApp = (function() {
           byName: true,
           repoName: d3.select(this).text(),
           pushHistoryEntry: true,
+          createFromLevel: (stack.length > 0) ? stack[stack.length-1].level : 1,
         };
-        if (stack.length > 0) {
-          action.createFromLevel = stack[stack.length-1].level;
-        }
         dispatch(action);
       };
     }
@@ -351,10 +353,11 @@ var theApp = (function() {
         };
       } else {
         if (!repo.githubDetails) {
-          if (!appState.rateLimitExceeded) {
+          if (!appState.rateLimitExceeded && !repo.githubDetailsRequested) {
             d3.json("https://api.github.com/repos/" + repo.name, function(error, json) {
               var msgObj;
               if (error) {
+                repo.githubDetailsRequested = false;
                 if (error.response) {
                   try {
                     msgObj = JSON.parse(error.response)
@@ -379,6 +382,7 @@ var theApp = (function() {
                 rerender();
               }
             });
+            repo.githubDetailsRequested = true;
           }
         } else {
           d3.select("#github-description").text(repo.githubDetails.description);
@@ -483,7 +487,7 @@ var theApp = (function() {
         .value(function(d) {return d.childCount;});
 
     var innerSVG = outerSVG.append("g")
-      .datum({name: root.name, breadcrumbs: root.breadcrumbs, svgDescription: tooltipText(root)});
+      .datum({name: root.name, breadcrumbs: root.breadcrumbs, svgDescription: tooltipText(root), level: level});
 
     if (level > 1) {
       innerSVG.attr("class", "innerMap");
