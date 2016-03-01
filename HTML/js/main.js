@@ -182,7 +182,7 @@ var theApp = (function() {
 
   function dispatch(action) {
     // moving towards a Redux-inspired single source of truth, but mutate the state for now
-    var stackTop, outerNode;
+    var stackTop, outerNode, createFromLevel;
     switch(action.type) {
       case "SELECT_REPO":
         if ((action.byName && (appState.selectedRepoName === action.repoName)) ||
@@ -210,23 +210,25 @@ var theApp = (function() {
           if (appState.selectedRepoID === null || !isBreadcrumbPrefix(d.breadcrumbs, repoMap.leafList[appState.selectedRepoID].breadcrumbs)) {
             d3.select(this).remove();
           } else {
-            appState.svgStack.push(d.svgDescription);
+            appState.svgStack.push({breadcrumbs: d.svgDescription, level: d.level});
           }
         });
-        if (appState.svgStack.length === 0 && appState.selectedRepoID !== null) {
-          // show the top-level map if we're only showing the root node
-          outerNode = d3.select(".depth1.level1."+repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)].sanitizedName).datum();
-          createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,2)], 2, getMargin() + outerNode.x - outerNode.r, getMargin() + outerNode.y - outerNode.r, 2 * outerNode.r, true);
+        if (appState.selectedRepoID !== null && (appState.svgStack.length === 0 || action.createFromLevel)) {
+          // show the top-level map if we're only showing the root node,
+          // or show the next-level map if we've been asked to
+          createFromLevel = action.createFromLevel || 1;
+          outerNode = d3.select(".depth1.level" + createFromLevel + "." + repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)].sanitizedName).datum();
+          createTreeMap(repoMap.fullDict[repoMap.leafList[appState.selectedRepoID].breadcrumbs.slice(0,1+createFromLevel)], 1+createFromLevel, getMargin() + outerNode.x - outerNode.r, getMargin() + outerNode.y - outerNode.r, 2 * outerNode.r, true);
         }
         rerender();
         break;
       case "PUSH_MAP":
-        appState.svgStack.push(action.svgDescription);
+        appState.svgStack.push({breadcrumbs: action.svgDescription, level: action.level});
         rerender();
         break;
       case "POP_MAP":
         stackTop = appState.svgStack.pop();
-        if (!action.svgDescription.every(function(e,i) {return e === stackTop[i];})) {
+        if (!action.svgDescription.every(function(e,i) {return e === stackTop.breadcrumbs[i];})) {
           console.log("Something weird happened with the stack...");
           console.log("Top of stack: ", stackTop);
           console.log("svgDescription: ", action.svgDescription);
@@ -261,6 +263,23 @@ var theApp = (function() {
       }
     }
 
+    function makeCallBack(stack) {
+      return function() {
+        d3.event.preventDefault();
+        d3.event.stopPropagation();
+        var action = {
+          type: "SELECT_REPO",
+          byName: true,
+          repoName: d3.select(this).text(),
+          pushHistoryEntry: true,
+        };
+        if (stack.length > 0) {
+          action.createFromLevel = stack[stack.length-1].level;
+        }
+        dispatch(action);
+      };
+    }
+
     d3.selectAll(".node.selected")
       .classed("selected", false);
     d3.selectAll(".node.related")
@@ -274,15 +293,11 @@ var theApp = (function() {
     d3.select("#breadcrumbs")
       .html("Displaying: " +
         ((appState.svgStack.length > 0) ?
-        appState.svgStack[appState.svgStack.length - 1].map(makeLink).join(", ") :
+        appState.svgStack[appState.svgStack.length - 1].breadcrumbs.map(makeLink).join(", ") :
         tooltipText(repoMap.rootNode).map(makeLink).join(", "))
       )
       .selectAll(".internal-link")
-      .on("click", function() {
-        d3.event.preventDefault();
-        d3.event.stopPropagation();
-        dispatch({type: "SELECT_REPO", byName: true, repoName: d3.select(this).text(), pushHistoryEntry: true});
-      });
+      .on("click", makeCallBack(appState.svgStack));
     if (parseInt($sr.val(), 10) !== appState.selectedRepoID) { // really really slow so don't do it if we don't have to
       $sr.val(appState.selectedRepoID).trigger("change");
     }
@@ -641,7 +656,7 @@ var theApp = (function() {
 
       innerSVG.transition().duration(slowTransition ? 1750 : 1000)
         .attr("transform", "translate(" + margin + "," + margin + ")");
-      dispatch({type: "PUSH_MAP", svgDescription: tooltipText(root)});
+      dispatch({type: "PUSH_MAP", svgDescription: tooltipText(root), level: level});
     }
 
     if (isNarrow) {
