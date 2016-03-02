@@ -31,30 +31,25 @@
     <div class="container-fluid">
       <div class="row">
         <div class="col-md-8">
-          <h5 class="row row-eq-height" style="height:32px;">
-            <div class="col-xs-2 hidden-sm hidden-md hidden-lg">
-              <a class="github-link" title="View on GitHub">
-                <img alt="View on GitHub" src="img/GitHub-Mark-64px.png" height="32px" width="32px" class="github-link-image greyed-out"/>
-              </a>
-            </div>
-            <div class="col-xs-10 col-sm-12">
+          <h5 class="row">
+            <div class="col-xs-12">
               <div style="width:100%">
                 <div id="selected-repo-placeholder">Loading data...</div>
                 <select class="hidden" id="selected-repo" style="width:100%;"><option></option></select>
               </div>
             </div>
           </h5>
-          <div class="row hidden-xs" style="min-height:3em;">
-            <div class="col-sm-1" id="github-avatar">
+          <div class="row" style="min-height:3em;">
+            <div class="col-sm-1 col-xs-2" id="github-avatar">
               <img class="hidden" alt="Avatar" height="32px" width="32px" />
             </div>
-            <div class="col-sm-7">
+            <div class="col-sm-7 col-xs-10">
               <a class="github-link" title="View on GitHub">
                 <span id="github-description"></span>
               </a>
             </div>
-            <div class="col-sm-2" id="github-starcount"></div>
-            <div class="col-sm-2" id="github-forkcount"></div>
+            <div class="col-sm-2 hidden-xs" id="github-starcount"></div>
+            <div class="col-sm-2 hidden-xs" id="github-forkcount"></div>
           </div>
           <div id="tooltip-text" class="mobile-tooltip hidden"></div>
           <div class="spinner">
