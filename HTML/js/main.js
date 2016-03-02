@@ -129,6 +129,8 @@ var theApp = (function() {
     }
     d3.selectAll(".spinner").remove();
     d3.select("#clustering-info-box").on("click", function() {
+      d3.event.preventDefault();
+      d3.event.stopPropagation();
       d3.select("#clustering-info-box").classed("hidden", true);
       d3.select("#clustering-explanation").classed("hidden", false);
     })
