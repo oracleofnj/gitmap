@@ -9,8 +9,15 @@ var theApp = (function() {
     d3.select("#tooltip-text").classed("hidden", false);
     d3.select("#breadcrumb-container").classed("mobile-tooltip", true);
   }
-  var repoMap = {fullDict: {}, leafList: [], leafDict: {}, edgeList: []};
-  var appState = {selectedRepoID: null, selectedRepoName: "", svgStack: [], rateLimitExceeded: false};
+  var repoMap = {fullDict: {}, leafList: [], leafDict: {}, edgeList: [], rootNode: null};
+  var appState = {
+    selectedRepoID: null,
+    selectedRepoName: "",
+    svgStack: [],
+    rateLimitExceeded: false,
+    repoMap: repoMap,
+    rootTreeMap: null,
+  };
   var $sr;
 
   function octicon(iconType) {
@@ -97,7 +104,7 @@ var theApp = (function() {
     countChildren(repoTree);
     addBreadcrumbs(repoTree, []);
     addEdges(edges);
-    createTreeMap(repoTree,1);
+    appState.rootTreeMap = createTreeMap(repoTree,1);
     initSelectBox(repoTree);
     if ($('html').is('.eq-ie9')) {
       appState.githubAPIBroken = true;
@@ -211,10 +218,10 @@ var theApp = (function() {
         }
         appState.svgStack = [];
         d3.selectAll(".innerMap").each(function(d) {
-          if (appState.selectedRepoID === null || !isBreadcrumbPrefix(d.breadcrumbs, repoMap.leafList[appState.selectedRepoID].breadcrumbs)) {
+          if (appState.selectedRepoID === null || !isBreadcrumbPrefix(d.root.breadcrumbs, repoMap.leafList[appState.selectedRepoID].breadcrumbs)) {
             d3.select(this).remove();
           } else {
-            appState.svgStack.push({breadcrumbs: d.svgDescription, level: d.level});
+            appState.svgStack.push(d);
           }
         });
         if (appState.selectedRepoID !== null && (appState.svgStack.length === 0 || action.createFromLevel)) {
@@ -233,12 +240,12 @@ var theApp = (function() {
         }
         break;
       case "PUSH_MAP":
-        appState.svgStack.push({breadcrumbs: action.svgDescription, level: action.level});
+        appState.svgStack.push(action.treeMap);
         rerender();
         break;
       case "POP_MAP":
         stackTop = appState.svgStack.pop();
-        if (!action.svgDescription.every(function(e,i) {return e === stackTop.breadcrumbs[i];})) {
+        if (!action.svgDescription.every(function(e,i) {return e === tooltipText(stackTop.root)[i];})) {
           console.log("Something weird happened with the stack...");
           console.log("Top of stack: ", stackTop);
           console.log("svgDescription: ", action.svgDescription);
@@ -266,6 +273,7 @@ var theApp = (function() {
 
   function rerender() {
     // console.log(appState);
+    var stackTop;
     function makeLink(repoName) {
       if (!(/^\.\.\.and\ \d+\ more$/.test(repoName))) {
         return '<a href="#!' + repoName + '" class="internal-link" style="cursor:pointer;">' + repoName + '</a>';
@@ -274,21 +282,7 @@ var theApp = (function() {
       }
     }
 
-    function makeCallBack(stack) {
-      return function() {
-        d3.event.preventDefault();
-        d3.event.stopPropagation();
-        var action = {
-          type: "SELECT_REPO",
-          byName: true,
-          repoName: d3.select(this).text(),
-          pushHistoryEntry: true,
-          createFromLevel: (stack.length > 0) ? stack[stack.length-1].level : 1,
-        };
-        dispatch(action);
-      };
-    }
-
+    stackTop = (appState.svgStack.length > 0) ? appState.svgStack[appState.svgStack.length-1] : appState.rootTreeMap;
     d3.selectAll(".node.selected")
       .classed("selected", false);
     d3.selectAll(".node.related")
@@ -300,13 +294,33 @@ var theApp = (function() {
     d3.select("#github-starcount").html("");
     d3.select("#github-forkcount").html("");
     d3.select("#breadcrumbs")
-      .html("Displaying: " +
-        ((appState.svgStack.length > 0) ?
-        appState.svgStack[appState.svgStack.length - 1].breadcrumbs.map(makeLink).join(", ") :
-        tooltipText(repoMap.rootNode).map(makeLink).join(", "))
-      )
+      .html("Displaying: " + tooltipText(stackTop.root).map(makeLink).join(", "))
       .selectAll(".internal-link")
-      .on("click", makeCallBack(appState.svgStack));
+      .datum(function() {
+        var repoName = d3.select(this).text();
+        return {
+          repoName: repoName,
+          familyCircle: stackTop.innerSVG.selectAll(".node.depth1").filter(function(circle) {return circle.name === repoName; }),
+        };
+      })
+      .on("click", function(d) {
+        d3.event.preventDefault();
+        d3.event.stopPropagation();
+        stackTop.hideToolTip();
+        dispatch({
+          type: "SELECT_REPO",
+          byName: true,
+          repoName: d.repoName,
+          pushHistoryEntry: true,
+          createFromLevel: stackTop.level,
+        })
+      })
+      .on("mouseover", function(d) {
+        stackTop.showToolTip(d.familyCircle);
+      })
+      .on("mouseout", function() {
+        stackTop.hideToolTip();
+      });
     if (parseInt($sr.val(), 10) !== appState.selectedRepoID) { // really really slow so don't do it if we don't have to
       $sr.val(appState.selectedRepoID).trigger("change");
     }
@@ -401,7 +415,10 @@ var theApp = (function() {
   }
 
   function createTreeMap(root, level, initialLeft, initialTop, initialDiameter, slowTransition) {
-    function showToolTip(node, svgCircle) {
+    var treeMap;
+
+    function showToolTip(svgCircle) {
+      var node = svgCircle.datum();
       var repoInfo = tooltipText(node);
       circles.classed("outlined", false);
       highlightedSVGCircle = svgCircle.classed("outlined", true);
@@ -479,10 +496,12 @@ var theApp = (function() {
     var pack = d3.layout.pack()
         .padding(3)
         .size([diameter, diameter])
-        .value(function(d) {return d.childCount;});
+        .value(function(d) {return d.childCount;})
+        .sort(function(a,b) {
+          return b.childCount - a.childCount;
+        });
 
-    var innerSVG = outerSVG.append("g")
-      .datum({name: root.name, breadcrumbs: root.breadcrumbs, svgDescription: tooltipText(root), level: level});
+    var innerSVG = outerSVG.append("g");
 
     if (level > 1) {
       innerSVG.attr("class", "innerMap");
@@ -548,7 +567,7 @@ var theApp = (function() {
     var highlightedSVGCircle=null, timeoutFnID=null, activeTouches=0;
     circles
       .on("mouseover", function(d) {
-        showToolTip(d, d3.select(this));
+        showToolTip(d3.select(this));
       })
       .on("mouseout", function(d) {
         hideToolTip();
@@ -576,7 +595,7 @@ var theApp = (function() {
           addInnerMap(d);
         } else {
           // if they touched a new circle, highlight it
-          showToolTip(d, d3.select(this));
+          showToolTip(d3.select(this));
           timeoutFnID = setTimeout(function() {addInnerMap(d);}, 750);
         }
       })
@@ -655,7 +674,6 @@ var theApp = (function() {
 
       innerSVG.transition().duration(slowTransition ? 1750 : 1000)
         .attr("transform", "translate(" + margin + "," + (isNarrow ? 0 : margin) + ")");
-      dispatch({type: "PUSH_MAP", svgDescription: tooltipText(root), level: level});
     }
 
     if (isNarrow) {
@@ -674,11 +692,26 @@ var theApp = (function() {
       tooltip = tooltipG.append("text");
     }
 
+    treeMap = {
+      root: root,
+      level: level,
+      innerSVG: innerSVG,
+      circles: circles,
+      showToolTip: showToolTip,
+      hideToolTip: hideToolTip,
+      addInnerMap: addInnerMap,
+    };
+    if (level > 1) {
+      innerSVG.datum(treeMap);
+      dispatch({type: "PUSH_MAP", treeMap: treeMap});
+    }
+    return treeMap;
+
   }
 
   return {
     initApp: initApp,
-    repoMap: repoMap,
+    appState: appState,
   };
 })();
 
