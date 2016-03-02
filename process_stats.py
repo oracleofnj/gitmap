@@ -28,11 +28,6 @@ def is_bot(user):
 def calc_graph(repos, users):
     crawled_repos, crawled_users = get_crawled(repos), get_crawled(users)
 
-    # Generate unused name for phantom node which has links to all other nodes and is linked to by sinks - may not be possible?
-    # PHANTOM_NODE = "PHANTOM_NODE"
-    # while PHANTOM_NODE in crawled_repos or PHANTOM_NODE in crawled_users:
-    #    PHANTOM_NODE = PHANTOM_NODE + "_"
-
     links = {}
     contrib_counts = {}
 
@@ -191,13 +186,6 @@ def gen_exemplars(resp, avail):
 
     return exemplars, children
 
-def userToString(user, rank_and_sources):
-    return "{0:8.4f} {1:32} Top 3 Sources: {2}".format(1e6*rank_and_sources[0], user,
-            ", ".join(["{0}: {1:.4f}".format(source, 1e6*weight) for (source, weight) in rank_and_sources[1].items()[:3]]))
-
-def repoToString(repo, rank):
-    return "{0:8.4f} {1:64}".format(1e6*rank, repo)
-
 def collapseTreeNode(node):
     if "children" in node:
         for child in node["children"]:
@@ -210,6 +198,13 @@ def collapseTreeNode(node):
             else:
                 node["children"] = node["children"][0]["children"]
 
+def recluster(repos, prev_r2r, prev_ch, num_iters, damping=0.95):
+    prev_exemplars = [x for x in prev_ch if x in prev_ch[x]]
+    next_r2r = {r1: {r2: prev_r2r[r1][r2] for r2 in prev_r2r[r1].keys() if r2 in prev_exemplars} for r1 in prev_r2r.keys() if r1 in prev_exemplars}
+    resp, avail = calc_similarities(next_r2r, repos, 0, num_iters, damping)
+    next_ex, next_ch = gen_exemplars(resp, avail)
+    return next_r2r, next_ch
+
 if __name__ == "__main__":
     data_path = "./downloaded_data"
     repos, users = load_repos(data_path), load_users(data_path)
@@ -218,20 +213,9 @@ if __name__ == "__main__":
     resp, avail = calc_similarities(r2r, repos, 0, 20)
     ex, ch = gen_exemplars(resp, avail)
 
-    lowest = [x for x in ch if x in ch[x]]
-    r2r_lowest = {r1: {r2: r2r[r1][r2] for r2 in r2r[r1].keys() if r2 in lowest} for r1 in r2r.keys() if r1 in lowest}
-    resp, avail = calc_similarities(r2r_lowest, repos, 0, 30, 0.97)
-    ex2, ch2 = gen_exemplars(resp, avail)
-
-    midlevel = [x for x in ch2 if x in ch2[x]]
-    r2r_midlevel = {r1: {r2: r2r_lowest[r1][r2] for r2 in r2r_lowest[r1].keys() if r2 in midlevel} for r1 in r2r_lowest.keys() if r1 in midlevel}
-    resp, avail = calc_similarities(r2r_midlevel, repos, 0, 50, 0.99)
-    ex3, ch3 = gen_exemplars(resp, avail)
-
-    toplevel = [x for x in ch3 if x in ch3[x]]
-    r2r_toplevel = {r1: {r2: r2r_midlevel[r1][r2] for r2 in r2r_midlevel[r1].keys() if r2 in toplevel} for r1 in r2r_midlevel.keys() if r1 in toplevel}
-    resp, avail = calc_similarities(r2r_toplevel, repos, 0, 100, 0.99)
-    ex4, ch4 = gen_exemplars(resp, avail)
+    r2r_2, ch2 = recluster(repos, r2r, ch, 30, 0.97)
+    r2r_3, ch3 = recluster(repos, r2r_2, ch2, 50, 0.99)
+    r2r_4, ch4 = recluster(repos, r2r_3, ch3, 100, 0.99)
 
     d3_gitmap = {"name": "github", "children": [ \
                     {"name": root, "children": [ \
@@ -248,12 +232,3 @@ if __name__ == "__main__":
     full_gitmap = {"tree": d3_gitmap, "links": [(r1, r2) for (r1, r2, r3, r4) in linkedrepos]}
     with open("gitmap.json", "w") as f:
         f.write(json.dumps(full_gitmap)) #, indent=2))
-
-
-    # repo_ranks, user_ranks = calc_gitrank_graph(links)
-    # for (i, (user, rank_and_sources)) in enumerate(it.islice(user_ranks.iteritems(), 100)):
-    #    print "{0:4} {1}".format(i+1, userToString(user, rank_and_sources))
-    # for (i, (repo, rank)) in enumerate(it.islice(repo_ranks.iteritems(), 100)):
-    #    print "{0:4} {1}".format(i+1, repoToString(repo, rank))
-    # gitmap = {root: {grandpa: {dad: sorted(ch[dad]) for dad in ch2[grandpa]} for grandpa in ch3[root]} for root in ch3.keys()}
-    # print json.dumps(gitmap, indent=4, sort_keys=True)

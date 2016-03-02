@@ -332,7 +332,7 @@ var theApp = (function() {
         '<circle class="legend selected" cx="10" cy="5" r="4"></circle>' +
         '<circle class="legend--leaf selected" cx="10" cy="5" r="2"></circle>' +
         '</svg>' +
-        repo.name + ":"
+        repo.name.split("/")[1] + ":"
       );
       d3.selectAll(".node").filter(function(d) {
         return d.depth > 0 && isBreadcrumbPrefix(d.breadcrumbs, repo.breadcrumbs);
