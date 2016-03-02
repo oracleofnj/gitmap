@@ -84,13 +84,26 @@
       <div class="row small" style="margin-top:40px;margin-bottom:15px;">
         <div class="col-md-8">
           <div id="clustering-info-box" class="hidden">
-            <span class="glyphicon glyphicon-question-sign"></span>&nbsp;<a href="#">Clustering Info</a>
+            <span class="glyphicon glyphicon-question-sign"></span>&nbsp;<a href="#">Map Info</a>
           </div>
           <div id="clustering-explanation" class="hidden">
-            The clustering for this site is based on <a href="http://www.psi.toronto.edu/index.php?q=affinity%20propagation">affinity propagation</a>.
-            For this app, repo A has an affinity for repo B if enough of repo A's contributors also contributed to, or starred, repo B.
-            If repo A has an affinity for repo B, and repo B has an affinity for repo A, the two repos are said to be related.
-            For more info, <a href="https://github.com/oracleofnj/gitmap/blob/master/README.md">click here.</a>
+            <p>
+              If you have selected a repository, it will be shown on the map as a
+              <svg width=12 height=8><circle class="legend--leaf selected" cx=6 cy=4 r=4></circle></svg>
+              yellow dot, and the ecosystem hierarchy it has been classified into will be outlined in
+              <svg width=12 height=8><circle class="legend selected" cx=6 cy=4 r=3.5></circle></svg>
+              yellow circles. Projects that have been classified as related will be indicated with
+              <svg width=12 height=8><circle class="legend--leaf related" cx=6 cy=4 r=4></circle></svg>
+              purple dots, and the ecosystems for those related projects will be outlined in
+              <svg width=12 height=8><circle class="legend related" cx=6 cy=4 r=3.5></circle></svg>
+              purple circles.
+            </p>
+            <p>
+              The clustering for this site is based on <a href="http://www.psi.toronto.edu/index.php?q=affinity%20propagation">affinity propagation</a>.
+              For this app, repo A has an affinity for repo B if enough of repo A's contributors also contributed to, or starred, repo B.
+              If repo A has an affinity for repo B, and repo B has an affinity for repo A, the two repos are said to be related.
+              For more information, <a href="https://github.com/oracleofnj/gitmap/blob/master/README.md">click here.</a>
+            </p>
           </div>
         </div>
       </div>
