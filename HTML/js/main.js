@@ -10,6 +10,7 @@ var theApp = (function() {
     d3.select("#breadcrumb-container").classed("mobile-tooltip", true);
   }
   var repoMap = {fullDict: {}, leafList: [], leafDict: {}, edgeList: [], rootNode: null};
+  var githubDetails = {};
   var appState = {
     selectedRepoID: null,
     selectedRepoName: "",
@@ -127,6 +128,11 @@ var theApp = (function() {
       );
     }
     d3.selectAll(".spinner").remove();
+    d3.select("#clustering-info-box").on("click", function() {
+      d3.select("#clustering-info-box").classed("hidden", true);
+      d3.select("#clustering-explanation").classed("hidden", false);
+    })
+    .classed("hidden", false);
     rerender();
   }
 
@@ -377,7 +383,7 @@ var theApp = (function() {
           d3.select("#github-description").text("I'm glad you're enjoying this! You've exceeded GitHub's API rate limit (60/hr) but you can keep using the app.");
         }
       } else {
-        if (!repo.githubDetails) {
+        if (!githubDetails[repo.name]) {
           if (!appState.rateLimitExceeded && !repo.githubDetailsRequested) {
             d3.json("https://api.github.com/repos/" + repo.name, function(error, json) {
               var msgObj;
@@ -403,18 +409,18 @@ var theApp = (function() {
                   dispatch({type: "GITHUB_API_BROKEN"});
                 }
               } else {
-                repo.githubDetails = json;
+                githubDetails[repo.name] = json;
                 rerender();
               }
             });
             repo.githubDetailsRequested = true;
           }
         } else {
-          d3.select("#github-description").text(repo.githubDetails.description);
-          d3.select("#github-avatar").select("img").attr("src",repo.githubDetails.owner.avatar_url).classed("hidden", false);
+          d3.select("#github-description").text(githubDetails[repo.name].description);
+          d3.select("#github-avatar").select("img").attr("src",githubDetails[repo.name].owner.avatar_url).classed("hidden", false);
           d3.select("#github-counts").html(
-            octicon('star', repo.githubDetails.stargazers_count) + '<br />' +
-            octicon('repo-forked', repo.githubDetails.forks_count)
+            octicon('star', githubDetails[repo.name].stargazers_count) + '<br />' +
+            octicon('repo-forked', githubDetails[repo.name].forks_count)
           );
         }
       }
@@ -528,7 +534,8 @@ var theApp = (function() {
       .attr("x", 0).attr("y", 0).attr("width", diameter).attr("height", diameter).attr("fill", "none").attr("pointer-events", "all");
 
     // d3 is going to mutate the object - make a deep copy before passing it in
-    var nodes = pack.nodes(JSON.parse(JSON.stringify(root)));
+    var rootCopy = JSON.parse(JSON.stringify(root));
+    var nodes = pack.nodes(rootCopy);
 
     var circleG = innerSVG.append("g")
       .attr("class", "circle-container");

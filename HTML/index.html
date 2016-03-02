@@ -83,10 +83,15 @@
       </div>
       <div class="row small" style="margin-top:40px;margin-bottom:15px;">
         <div class="col-md-8">
-          The clustering for this site is based on <a href="http://www.psi.toronto.edu/index.php?q=affinity%20propagation">affinity propagation</a>.
-          For this app, repo A has an affinity for repo B if enough of repo A's contributors also contributed to, or starred, repo B.
-          If repo A has an affinity for repo B, and repo B has an affinity for repo A, the two repos are said to be related.
-          For more info, <a href="https://github.com/oracleofnj/gitmap/blob/master/README.md">click here.</a>
+          <div id="clustering-info-box" class="hidden">
+            <span class="glyphicon glyphicon-question-sign"></span>&nbsp;<a href="#">Clustering Info</a>
+          </div>
+          <div id="clustering-explanation" class="hidden">
+            The clustering for this site is based on <a href="http://www.psi.toronto.edu/index.php?q=affinity%20propagation">affinity propagation</a>.
+            For this app, repo A has an affinity for repo B if enough of repo A's contributors also contributed to, or starred, repo B.
+            If repo A has an affinity for repo B, and repo B has an affinity for repo A, the two repos are said to be related.
+            For more info, <a href="https://github.com/oracleofnj/gitmap/blob/master/README.md">click here.</a>
+          </div>
         </div>
       </div>
     </div> <!-- /container -->
@@ -95,7 +100,8 @@
     <script src="js/vendor/jquery-1.11.2.min.js"></script>
   -->
     <script src="js/vendor/bootstrap.min.js"></script>
-    <script src="js/vendor/d3.v3.min.js"></script>
+    <script src="//d3js.org/d3.v3.js"></script>
+    <!--js/vendor/d3.v3.min.js"></script>-->
     <script src="js/vendor/d3-queue.v2.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/select2/4.0.1/js/select2.min.js"></script>
     <!-- flying
