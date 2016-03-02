@@ -57,26 +57,29 @@
             <div class="dot2"></div>
           </div>
           <svg id="treemap" width="100%">
-            <g class="graph-legend wide hidden">
-              <circle class="legend--leaf selected" cx=15 cy=20 r=5></circle>
-              <text x=25 y=25>Selected Repo</text>
-              <circle class="legend--leaf related" cx=15 cy=40 r=5></circle>
-              <text x=25 y=45>Related Repos</text>
-            </g>
-            <g class="graph-legend narrow hidden">
-              <circle class="legend--leaf selected" cx=5 cy=10 r=5></circle>
-              <text x=15 y=15 font-size=0.75em>Selected</text>
-              <circle class="legend--leaf related" cx=5 cy=30 r=5></circle>
-              <text x=15 y=35 font-size=0.75em>Related</text>
-            </g>
           </svg>
           <p id="breadcrumb-container" style="text-align:center">
             <span id="breadcrumbs"></span>
           </p>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <h5 id="related-repo-header">Select a repository to find related repos</h5>
-          <div id="related-repos">
+          <div id="related-repos"></div>
+        </div>
+        <div class="col-md-1">
+          <h5>
+            <svg height="1em" width="1em" viewbox="0 0 20 20">
+              <circle cx=10 cy=10 r=10 style="fill:#034e7b;"></circle>
+              <circle cx="6.480" cy="8.235" r="1.145" style="fill:#FFFFFF;"></circle>
+              <circle cx="9.673" cy="8.235" r="1.145" style="fill:#FFFFFF;"></circle>
+              <circle cx="8.076" cy="4.933" r="1.619" style="fill:#FFFFFF;"></circle>
+              <circle cx="3.597" cy="5.417" r="1.983" style="fill:#FFFFFF;"></circle>
+              <circle cx="2.637" cy="10.779" r="2.561" style="fill:#FFFFFF;"></circle>
+              <circle cx="8.785" cy="13.447" r="3.239" style="fill:#FFFFFF;"></circle>
+              <circle cx="15.795" cy="9.057" r="4.129" style="fill:#FFFFFF;"></circle>
+            </svg>
+            <a href="https://github.com/oracleofnj/gitmap/">About</span></a>
+          </h5>
         </div>
       </div>
     </div> <!-- /container -->

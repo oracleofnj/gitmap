@@ -349,10 +349,7 @@ var theApp = (function() {
           dispatch({type: "SELECT_REPO", byName: false, repoID: d.repoID, pushHistoryEntry: true});
         });
 
-      d3.selectAll(".github-link")
-        .attr("href","https://www.github.com/" + repo.name)
-        .select("img")
-        .classed("greyed-out", false);
+      d3.selectAll(".github-link").attr("href","https://www.github.com/" + repo.name);
 
       if (appState.githubAPIBroken) {
         if (appState.rateLimitExceeded) {
@@ -398,17 +395,8 @@ var theApp = (function() {
           d3.select("#github-forkcount").html(octicon('repo-forked') + '&nbsp;' + repo.githubDetails.forks_count.toLocaleString());
         }
       }
-      // superseded by small circles
-      // d3.selectAll(".graph-legend." + (isNarrow ? "narrow" : "wide"))
-      //   .classed("hidden", false);
     } else {
-      d3.selectAll(".github-link")
-        .attr("href",null)
-        .select("img")
-        .classed("greyed-out", true);
-      // superseded by small circles
-      // d3.selectAll(".graph-legend")
-      //   .classed("hidden", true);
+      d3.selectAll(".github-link").attr("href",null)
     }
   }
 
