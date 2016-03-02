@@ -20,7 +20,7 @@ var theApp = (function() {
   };
   var $sr;
 
-  function octicon(iconType) {
+  function octicon(iconType, count) {
     switch(iconType) {
       // case 'star':
       //   return '<svg aria-hidden="true" class="octicon octicon-star" height="24" role="img" version="1.1" viewBox="0 0 14 16" width="21"><path d="M14 6l-4.9-0.64L7 1 4.9 5.36 0 6l3.6 3.26L2.67 14l4.33-2.33 4.33 2.33L10.4 9.26 14 6z"></path></svg>';
@@ -28,7 +28,8 @@ var theApp = (function() {
       //   return '<svg aria-hidden="true" class="octicon octicon-repo-forked" height="24" role="img" version="1.1" viewBox="0 0 10 16" width="15"><path d="M8 1c-1.11 0-2 0.89-2 2 0 0.73 0.41 1.38 1 1.72v1.28L5 8 3 6v-1.28c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2S0 1.89 0 3c0 0.73 0.41 1.38 1 1.72v1.78l3 3v1.78c-0.59 0.34-1 0.98-1 1.72 0 1.11 0.89 2 2 2s2-0.89 2-2c0-0.73-0.41-1.38-1-1.72V9.5l3-3V4.72c0.59-0.34 1-0.98 1-1.72 0-1.11-0.89-2-2-2zM2 4.2c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3 10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z m3-10c-0.66 0-1.2-0.55-1.2-1.2s0.55-1.2 1.2-1.2 1.2 0.55 1.2 1.2-0.55 1.2-1.2 1.2z"></path></svg>';
       // never mind for now
       default:
-        return '<span class="octicon octicon-' + iconType + '"></span>';
+        return '<span class="octicon octicon-' + iconType + '"></span>' +
+               '&nbsp;' + ((count > 1000) ? ((count/1000).toFixed(1) + 'k') : count);
     }
   }
 
@@ -291,8 +292,7 @@ var theApp = (function() {
     d3.select("#related-repo-header").html("Select a repository to find related repos");
     d3.select("#github-description").text("");
     d3.select("#github-avatar").select("img").classed("hidden", true);
-    d3.select("#github-starcount").html("");
-    d3.select("#github-forkcount").html("");
+    d3.select("#github-counts").html("");
     d3.select("#breadcrumbs")
       .html("Displaying: " + tooltipText(stackTop.root).map(makeLink).join(", "))
       .selectAll(".internal-link")
@@ -326,7 +326,14 @@ var theApp = (function() {
     }
     if (appState.selectedRepoID) {
       var repo = repoMap.leafList[appState.selectedRepoID];
-      d3.select("#related-repo-header").html("Repos related to " + repo.name + ":");
+      d3.select("#related-repo-header").html(
+        'Repos related to ' +
+        '<svg width="18px" height="10px">' +
+        '<circle class="legend selected" cx="10" cy="5" r="4"></circle>' +
+        '<circle class="legend--leaf selected" cx="10" cy="5" r="2"></circle>' +
+        '</svg>' +
+        repo.name + ":"
+      );
       d3.selectAll(".node").filter(function(d) {
         return d.depth > 0 && isBreadcrumbPrefix(d.breadcrumbs, repo.breadcrumbs);
       }).classed("selected", true);
@@ -350,8 +357,8 @@ var theApp = (function() {
         .data(reposByOtherOwner.sort(function(a,b) { return a.name.localeCompare(b.name); }))
         .enter().append("p").attr("class", "related-repo other-owner");
       d3.select("#related-repos").selectAll(".related-repo")
-        .append("svg").attr("width",15).attr("height",10)
-        .append("circle").attr("class","legend--leaf related").attr("cx",5).attr("cy",5).attr("r",5);
+        .append("svg").attr("width",13).attr("height",10)
+        .append("circle").attr("class","legend--leaf related").attr("cx",5).attr("cy",5).attr("r",4);
       d3.select("#related-repos").selectAll(".related-repo")
         .append("a")
         .attr("class","related-repo-link")
@@ -405,8 +412,10 @@ var theApp = (function() {
         } else {
           d3.select("#github-description").text(repo.githubDetails.description);
           d3.select("#github-avatar").select("img").attr("src",repo.githubDetails.owner.avatar_url).classed("hidden", false);
-          d3.select("#github-starcount").html(octicon('star') + '&nbsp;' + repo.githubDetails.stargazers_count.toLocaleString());
-          d3.select("#github-forkcount").html(octicon('repo-forked') + '&nbsp;' + repo.githubDetails.forks_count.toLocaleString());
+          d3.select("#github-counts").html(
+            octicon('star', repo.githubDetails.stargazers_count) + '<br />' +
+            octicon('repo-forked', repo.githubDetails.forks_count)
+          );
         }
       }
     } else {
@@ -469,8 +478,8 @@ var theApp = (function() {
     }
 
     function addInnerMap(node) {
+      hideToolTip();
       if (node.children) {
-        hideToolTip();
         createTreeMap(repoMap.fullDict[node.breadcrumbs], node.depth+level, margin + node.x - node.r, (isNarrow ? 0 : margin) + node.y - node.r, 2 * node.r, false);
       } else {
         dispatch({
