@@ -63,7 +63,7 @@ var theApp = (function() {
     $sr = $("#selected-repo");
     var s2config = {
       theme: "classic",
-      placeholder: "Type here or explore the map...",
+      placeholder: "Explore the map or enter repo here",
       allowClear: true,
       minimumInputLength: 3,
       templateSelection: template,
@@ -297,7 +297,7 @@ var theApp = (function() {
     d3.selectAll(".node.related")
       .classed("related", false);
     d3.select("#related-repos").selectAll(".related-repo").remove();
-    d3.select("#related-repo-header").html("Select a repository to find related repos");
+    d3.select("#related-repo-header").html("Select a project to find related repos");
     d3.select("#github-description").text("");
     d3.select("#github-avatar").select("img").classed("hidden", true);
     d3.select("#github-counts").html("");

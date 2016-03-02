@@ -132,6 +132,13 @@
   opacity: 0.25;
 }
 
+/* http://stackoverflow.com/questions/6483425/prevent-iphone-from-zooming-in-on-select-in-web-app */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+select:focus, textarea:focus, input:focus {
+        font-size: 16px;
+    }
+}
+
 /* https://github.com/tobiasahlin/SpinKit */
 
 .spinner {
