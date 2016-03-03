@@ -1,0 +1,785 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>GitHub Repository Map - Algorithm Details</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Generated with http://realfavicongenerator.net/ -->
+    <link rel="apple-touch-icon" sizes="57x57" href="icons/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="icons/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="icons/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="icons/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180x180.png">
+    <link rel="icon" type="image/png" href="icons/favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="icons/android-chrome-192x192.png" sizes="192x192">
+    <link rel="icon" type="image/png" href="icons/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="icons/favicon-16x16.png" sizes="16x16">
+    <link rel="manifest" href="icons/manifest.json">
+    <link rel="mask-icon" href="icons/safari-pinned-tab.svg" color="#5bbad5">
+    <link rel="shortcut icon" href="icons/favicon.ico">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="msapplication-TileImage" content="icons/mstile-144x144.png">
+    <meta name="msapplication-config" content="icons/browserconfig.xml">
+    <meta name="theme-color" content="#ffffff">
+<!-- https://raw.githubusercontent.com/sindresorhus/github-markdown-css/gh-pages/github-markdown.css -->
+    <style>
+    @font-face {
+      font-family: octicons-link;
+      src: url(data:font/woff;charset=utf-8;base64,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) format('woff');
+    }
+
+    .markdown-body {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      color: #333;
+      font-family: "Helvetica Neue", Helvetica, "Segoe UI", Arial, freesans, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      font-size: 16px;
+      line-height: 1.6;
+      word-wrap: break-word;
+    }
+
+    .markdown-body a {
+      background-color: transparent;
+    }
+
+    .markdown-body a:active,
+    .markdown-body a:hover {
+      outline: 0;
+    }
+
+    .markdown-body strong {
+      font-weight: bold;
+    }
+
+    .markdown-body h1 {
+      font-size: 2em;
+      margin: 0.67em 0;
+    }
+
+    .markdown-body img {
+      border: 0;
+    }
+
+    .markdown-body hr {
+      box-sizing: content-box;
+      height: 0;
+    }
+
+    .markdown-body pre {
+      overflow: auto;
+    }
+
+    .markdown-body code,
+    .markdown-body kbd,
+    .markdown-body pre {
+      font-family: monospace, monospace;
+      font-size: 1em;
+    }
+
+    .markdown-body input {
+      color: inherit;
+      font: inherit;
+      margin: 0;
+    }
+
+    .markdown-body html input[disabled] {
+      cursor: default;
+    }
+
+    .markdown-body input {
+      line-height: normal;
+    }
+
+    .markdown-body input[type="checkbox"] {
+      box-sizing: border-box;
+      padding: 0;
+    }
+
+    .markdown-body table {
+      border-collapse: collapse;
+      border-spacing: 0;
+    }
+
+    .markdown-body td,
+    .markdown-body th {
+      padding: 0;
+    }
+
+    .markdown-body * {
+      box-sizing: border-box;
+    }
+
+    .markdown-body input {
+      font: 13px / 1.4 Helvetica, arial, nimbussansl, liberationsans, freesans, clean, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    }
+
+    .markdown-body a {
+      color: #4078c0;
+      text-decoration: none;
+    }
+
+    .markdown-body a:hover,
+    .markdown-body a:active {
+      text-decoration: underline;
+    }
+
+    .markdown-body hr {
+      height: 0;
+      margin: 15px 0;
+      overflow: hidden;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .markdown-body hr:before {
+      display: table;
+      content: "";
+    }
+
+    .markdown-body hr:after {
+      display: table;
+      clear: both;
+      content: "";
+    }
+
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3,
+    .markdown-body h4,
+    .markdown-body h5,
+    .markdown-body h6 {
+      margin-top: 15px;
+      margin-bottom: 15px;
+      line-height: 1.1;
+    }
+
+    .markdown-body h1 {
+      font-size: 30px;
+    }
+
+    .markdown-body h2 {
+      font-size: 21px;
+    }
+
+    .markdown-body h3 {
+      font-size: 16px;
+    }
+
+    .markdown-body h4 {
+      font-size: 14px;
+    }
+
+    .markdown-body h5 {
+      font-size: 12px;
+    }
+
+    .markdown-body h6 {
+      font-size: 11px;
+    }
+
+    .markdown-body blockquote {
+      margin: 0;
+    }
+
+    .markdown-body ul,
+    .markdown-body ol {
+      padding: 0;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
+    .markdown-body ol ol,
+    .markdown-body ul ol {
+      list-style-type: lower-roman;
+    }
+
+    .markdown-body ul ul ol,
+    .markdown-body ul ol ol,
+    .markdown-body ol ul ol,
+    .markdown-body ol ol ol {
+      list-style-type: lower-alpha;
+    }
+
+    .markdown-body dd {
+      margin-left: 0;
+    }
+
+    .markdown-body code {
+      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 12px;
+    }
+
+    .markdown-body pre {
+      margin-top: 0;
+      margin-bottom: 0;
+      font: 12px Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    }
+
+    .markdown-body .select::-ms-expand {
+      opacity: 0;
+    }
+
+    .markdown-body .octicon {
+      font: normal normal normal 16px/1 octicons-link;
+      display: inline-block;
+      text-decoration: none;
+      text-rendering: auto;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    .markdown-body .octicon-link:before {
+      content: '\f05c';
+    }
+
+    .markdown-body:before {
+      display: table;
+      content: "";
+    }
+
+    .markdown-body:after {
+      display: table;
+      clear: both;
+      content: "";
+    }
+
+    .markdown-body>*:first-child {
+      margin-top: 0 !important;
+    }
+
+    .markdown-body>*:last-child {
+      margin-bottom: 0 !important;
+    }
+
+    .markdown-body a:not([href]) {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .markdown-body .anchor {
+      display: inline-block;
+      padding-right: 2px;
+      margin-left: -18px;
+    }
+
+    .markdown-body .anchor:focus {
+      outline: none;
+    }
+
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3,
+    .markdown-body h4,
+    .markdown-body h5,
+    .markdown-body h6 {
+      margin-top: 1em;
+      margin-bottom: 16px;
+      font-weight: bold;
+      line-height: 1.4;
+    }
+
+    .markdown-body h1 .octicon-link,
+    .markdown-body h2 .octicon-link,
+    .markdown-body h3 .octicon-link,
+    .markdown-body h4 .octicon-link,
+    .markdown-body h5 .octicon-link,
+    .markdown-body h6 .octicon-link {
+      color: #000;
+      vertical-align: middle;
+      visibility: hidden;
+    }
+
+    .markdown-body h1:hover .anchor,
+    .markdown-body h2:hover .anchor,
+    .markdown-body h3:hover .anchor,
+    .markdown-body h4:hover .anchor,
+    .markdown-body h5:hover .anchor,
+    .markdown-body h6:hover .anchor {
+      text-decoration: none;
+    }
+
+    .markdown-body h1:hover .anchor .octicon-link,
+    .markdown-body h2:hover .anchor .octicon-link,
+    .markdown-body h3:hover .anchor .octicon-link,
+    .markdown-body h4:hover .anchor .octicon-link,
+    .markdown-body h5:hover .anchor .octicon-link,
+    .markdown-body h6:hover .anchor .octicon-link {
+      visibility: visible;
+    }
+
+    .markdown-body h1 {
+      padding-bottom: 0.3em;
+      font-size: 2.25em;
+      line-height: 1.2;
+      border-bottom: 1px solid #eee;
+    }
+
+    .markdown-body h1 .anchor {
+      line-height: 1;
+    }
+
+    .markdown-body h2 {
+      padding-bottom: 0.3em;
+      font-size: 1.75em;
+      line-height: 1.225;
+      border-bottom: 1px solid #eee;
+    }
+
+    .markdown-body h2 .anchor {
+      line-height: 1;
+    }
+
+    .markdown-body h3 {
+      font-size: 1.5em;
+      line-height: 1.43;
+    }
+
+    .markdown-body h3 .anchor {
+      line-height: 1.2;
+    }
+
+    .markdown-body h4 {
+      font-size: 1.25em;
+    }
+
+    .markdown-body h4 .anchor {
+      line-height: 1.2;
+    }
+
+    .markdown-body h5 {
+      font-size: 1em;
+    }
+
+    .markdown-body h5 .anchor {
+      line-height: 1.1;
+    }
+
+    .markdown-body h6 {
+      font-size: 1em;
+      color: #777;
+    }
+
+    .markdown-body h6 .anchor {
+      line-height: 1.1;
+    }
+
+    .markdown-body p,
+    .markdown-body blockquote,
+    .markdown-body ul,
+    .markdown-body ol,
+    .markdown-body dl,
+    .markdown-body table,
+    .markdown-body pre {
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+
+    .markdown-body hr {
+      height: 4px;
+      padding: 0;
+      margin: 16px 0;
+      background-color: #e7e7e7;
+      border: 0 none;
+    }
+
+    .markdown-body ul,
+    .markdown-body ol {
+      padding-left: 2em;
+    }
+
+    .markdown-body ul ul,
+    .markdown-body ul ol,
+    .markdown-body ol ol,
+    .markdown-body ol ul {
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
+    .markdown-body li>p {
+      margin-top: 16px;
+    }
+
+    .markdown-body dl {
+      padding: 0;
+    }
+
+    .markdown-body dl dt {
+      padding: 0;
+      margin-top: 16px;
+      font-size: 1em;
+      font-style: italic;
+      font-weight: bold;
+    }
+
+    .markdown-body dl dd {
+      padding: 0 16px;
+      margin-bottom: 16px;
+    }
+
+    .markdown-body blockquote {
+      padding: 0 15px;
+      color: #777;
+      border-left: 4px solid #ddd;
+    }
+
+    .markdown-body blockquote>:first-child {
+      margin-top: 0;
+    }
+
+    .markdown-body blockquote>:last-child {
+      margin-bottom: 0;
+    }
+
+    .markdown-body table {
+      display: block;
+      width: 100%;
+      overflow: auto;
+      word-break: normal;
+      word-break: keep-all;
+    }
+
+    .markdown-body table th {
+      font-weight: bold;
+    }
+
+    .markdown-body table th,
+    .markdown-body table td {
+      padding: 6px 13px;
+      border: 1px solid #ddd;
+    }
+
+    .markdown-body table tr {
+      background-color: #fff;
+      border-top: 1px solid #ccc;
+    }
+
+    .markdown-body table tr:nth-child(2n) {
+      background-color: #f8f8f8;
+    }
+
+    .markdown-body img {
+      max-width: 100%;
+      box-sizing: content-box;
+      background-color: #fff;
+    }
+
+    .markdown-body code {
+      padding: 0;
+      padding-top: 0.2em;
+      padding-bottom: 0.2em;
+      margin: 0;
+      font-size: 85%;
+      background-color: rgba(0,0,0,0.04);
+      border-radius: 3px;
+    }
+
+    .markdown-body code:before,
+    .markdown-body code:after {
+      letter-spacing: -0.2em;
+      content: "\00a0";
+    }
+
+    .markdown-body pre>code {
+      padding: 0;
+      margin: 0;
+      font-size: 100%;
+      word-break: normal;
+      white-space: pre;
+      background: transparent;
+      border: 0;
+    }
+
+    .markdown-body .highlight {
+      margin-bottom: 16px;
+    }
+
+    .markdown-body .highlight pre,
+    .markdown-body pre {
+      padding: 16px;
+      overflow: auto;
+      font-size: 85%;
+      line-height: 1.45;
+      background-color: #f7f7f7;
+      border-radius: 3px;
+    }
+
+    .markdown-body .highlight pre {
+      margin-bottom: 0;
+      word-break: normal;
+    }
+
+    .markdown-body pre {
+      word-wrap: normal;
+    }
+
+    .markdown-body pre code {
+      display: inline;
+      max-width: initial;
+      padding: 0;
+      margin: 0;
+      overflow: initial;
+      line-height: inherit;
+      word-wrap: normal;
+      background-color: transparent;
+      border: 0;
+    }
+
+    .markdown-body pre code:before,
+    .markdown-body pre code:after {
+      content: normal;
+    }
+
+    .markdown-body kbd {
+      display: inline-block;
+      padding: 3px 5px;
+      font-size: 11px;
+      line-height: 10px;
+      color: #555;
+      vertical-align: middle;
+      background-color: #fcfcfc;
+      border: solid 1px #ccc;
+      border-bottom-color: #bbb;
+      border-radius: 3px;
+      box-shadow: inset 0 -1px 0 #bbb;
+    }
+
+    .markdown-body .pl-c {
+      color: #969896;
+    }
+
+    .markdown-body .pl-c1,
+    .markdown-body .pl-s .pl-v {
+      color: #0086b3;
+    }
+
+    .markdown-body .pl-e,
+    .markdown-body .pl-en {
+      color: #795da3;
+    }
+
+    .markdown-body .pl-s .pl-s1,
+    .markdown-body .pl-smi {
+      color: #333;
+    }
+
+    .markdown-body .pl-ent {
+      color: #63a35c;
+    }
+
+    .markdown-body .pl-k {
+      color: #a71d5d;
+    }
+
+    .markdown-body .pl-pds,
+    .markdown-body .pl-s,
+    .markdown-body .pl-s .pl-pse .pl-s1,
+    .markdown-body .pl-sr,
+    .markdown-body .pl-sr .pl-cce,
+    .markdown-body .pl-sr .pl-sra,
+    .markdown-body .pl-sr .pl-sre {
+      color: #183691;
+    }
+
+    .markdown-body .pl-v {
+      color: #ed6a43;
+    }
+
+    .markdown-body .pl-id {
+      color: #b52a1d;
+    }
+
+    .markdown-body .pl-ii {
+      background-color: #b52a1d;
+      color: #f8f8f8;
+    }
+
+    .markdown-body .pl-sr .pl-cce {
+      color: #63a35c;
+      font-weight: bold;
+    }
+
+    .markdown-body .pl-ml {
+      color: #693a17;
+    }
+
+    .markdown-body .pl-mh,
+    .markdown-body .pl-mh .pl-en,
+    .markdown-body .pl-ms {
+      color: #1d3e81;
+      font-weight: bold;
+    }
+
+    .markdown-body .pl-mq {
+      color: #008080;
+    }
+
+    .markdown-body .pl-mi {
+      color: #333;
+      font-style: italic;
+    }
+
+    .markdown-body .pl-mb {
+      color: #333;
+      font-weight: bold;
+    }
+
+    .markdown-body .pl-md {
+      background-color: #ffecec;
+      color: #bd2c00;
+    }
+
+    .markdown-body .pl-mi1 {
+      background-color: #eaffea;
+      color: #55a532;
+    }
+
+    .markdown-body .pl-mdr {
+      color: #795da3;
+      font-weight: bold;
+    }
+
+    .markdown-body .pl-mo {
+      color: #1d3e81;
+    }
+
+    .markdown-body kbd {
+      display: inline-block;
+      padding: 3px 5px;
+      font: 11px Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      line-height: 10px;
+      color: #555;
+      vertical-align: middle;
+      background-color: #fcfcfc;
+      border: solid 1px #ccc;
+      border-bottom-color: #bbb;
+      border-radius: 3px;
+      box-shadow: inset 0 -1px 0 #bbb;
+    }
+
+    .markdown-body .task-list-item {
+      list-style-type: none;
+    }
+
+    .markdown-body .task-list-item+.task-list-item {
+      margin-top: 3px;
+    }
+
+    .markdown-body .task-list-item input {
+      margin: 0 0.35em 0.25em -1.6em;
+      vertical-align: middle;
+    }
+
+    .markdown-body :checked+.radio-label {
+      z-index: 1;
+      position: relative;
+      border-color: #4078c0;
+    }
+
+    .markdown-body {
+        box-sizing: border-box;
+        min-width: 200px;
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 45px;
+    }
+
+    </style>
+  </head>
+  <body class="markdown-body">
+    <h2>More Details</h2>
+
+    <p>The python file <a href="https://github.com/oracleofnj/gitmap/blob/master/process_stats.py">process_stats.py</a> is what I ran to generate the clustering, so if there's a conflict between what the code says and what I wrote here, the site is doing what that script says.</p>
+
+    <p>I first used a PageRank-inspired formula to calculate affinities between repositories. A common way to interpret the numerical value that the PageRank algorithm outputs is by imagining a random web surfer: the surfer starts at an arbitrary page, and with 85% probability, clicks a random link on that page, and with 15% probability, jumps to a completely random page. If the surfer ever gets to a page with no outbound links, they jump to a completely random page. For any given web page, the PageRank is the probability that at any given instant, the surfer will be visiting that page.</p>
+
+    <p>In order to apply that to GitHub, I imagine a random GitHub surfer (Steve). Steve starts at an arbitrary project, and then chooses a contributor (Courtney) to that project with a probability that's a function of how many of the contributions Courtney is responsible for; the probability is log(1+numContributions) / sum (log(1+numContributions)). Steve then chooses a new repository to move to as follows: 1/3rd of the time, he jumps to a randomly chosen repository that Courtney has contributed to; 2/3rds of the time, Steve jumps to a randomly chosen repository that she starred. There was nothing magic about the choice of 1/3 - this was an arbitrary number that produced fairly reasonable results early on, and I didn't try try tweaking it.</p>
+
+    <p>The affinity of repo A for repo B is the probability that Steve starts at repo A and ends up at repo B. To be precise, this would be true if I had crawled all of GitHub - since I didn't, the total outgoing probabilities for most of the repos are less than 1, either because I didn't crawl all of the possible target repos, or because I didn't crawl all of the intermediate contributors.</p>
+
+    <p>Once I had the affinities, I followed the paper on affinity propagation pretty closely, with two minor modifications: first of all, instead of using a constant number for the damping factor, I did something with a simulated annealing flavor: I started with a factor close to 1 (so at each step, it paid very little attention to the message sent in the previous step) and kept multiplying by that number at each iteration, so at the first step the damping factor was 0.95, the next step 0.95^2, then 0.95^3, etc. Second, I didn't bother to check for convergence, I just stopped it after a set number of iterations (less code, and when I was testing, it had generally converged before the number of steps I set.)</p>
+
+    <p>For a given set of inputs, affinity propagation produces a subset of inputs known as the exemplars, and chooses an exemplar for every input. In the code I refer to the all of the inputs with a given exemplar as the children of that exemplar. (The exemplar is its own child.) Once the algorithm had produced a set of exemplars, I re-ran the algorithm on only those exemplars, in order to produce a hierarchical structure. I ran the algorithm four times in total, including the first, so the leaves can be up to five levels deep. To understand how this might work, or if you're confused about what's being displayed, imagine that we started with the following eight repos:</p>
+
+    <ul>
+    <li>jquery</li>
+    <li>jquery-ui</li>
+    <li>bootstrap</li>
+    <li>bootstrap-datepicker</li>
+    <li>golang/go</li>
+    <li>golang/lint</li>
+    <li>docker</li>
+    <li>swarm</li>
+    </ul>
+
+    <p>Imagine that the first round produced the following set of exemplars:</p>
+
+    <ul>
+    <li>jquery (children: jquery, jquery-ui)</li>
+    <li>bootstrap (children: bootstrap, bootstrap-datepicker)</li>
+    <li>golang/go (children: golang/go, golang/lint)</li>
+    <li>docker (children: docker, swarm)</li>
+    </ul>
+
+    <p>And then the next round produced:</p>
+
+    <ul>
+    <li>jquery (children: jquery, bootstrap)</li>
+    <li>golang/go (children: golang/go, docker)</li>
+    </ul>
+
+    <p>And then the third round produced:</p>
+
+    <ul>
+    <li>jquery (children: jquery)</li>
+    <li>golang/go (children: golang/go)</li>
+    </ul>
+
+    <p>For these results, the app would produce two top-level circles. Their tooltips would say:</p>
+
+    <ul>
+    <li>jquery, bootstrap, ...and 2 more</li>
+    <li>golang/go, docker, ...and 2 more</li>
+    </ul>
+
+    <p>Zooming in on either the jquery + bootstrap circle or the golang + docker circle would produce two more circles, each with two leaf nodes; the tooltips for the four intermediate-level circles would say:</p>
+
+    <ul>
+    <li>jquery, jquery-ui</li>
+    <li>bootstrap, bootstrap-datepicker</li>
+    <li>golang/go, golang/lint</li>
+    <li>docker, swarm</li>
+    </ul>
+
+    <p>In other words, represented as a tree, the structure is:</p>
+
+    <ul>
+    <li>jquery, bootstrap, ...and 2 more
+    <ul><li>jquery, jquery-ui</li>
+    <li>bootstrap, bootstrap-datepicker</li></ul></li>
+    <li>golang/go, docker, ...and 2 more
+    <ul><li>golang/go, golang/lint</li>
+    <li>docker, swarm</li></ul></li>
+    </ul>
+
+    <h2>Other Notes</h2>
+
+    <p>I excluded <code>invalid-email-address</code> and the four most obvious bot accounts I found. </p>
+
+    <p>GitHub's API doesn't return the contributor list for <a href="https://github.com/torvalds/linux">linux</a> because it's too large. I assigned 100% probability of surfing from linux to Linus. If you have a manual fix for this, please feel free to submit a pull request.</p>
+
+    <p>As I mentioned earlier, this is supposed to be fun and hopefully useful - although I think it did a reasonable job overall, it's not supposed to represent my opinion about where any particular project belongs. It's the result of a fairly simple algorithm. Please enjoy it and don't take it too seriously! </p>
+
+
+  </body>
+</html>
