@@ -205,6 +205,18 @@ def recluster(repos, prev_r2r, prev_ch, num_iters, damping=0.95):
     next_ex, next_ch = gen_exemplars(resp, avail)
     return next_r2r, next_ch
 
+def eco_r2r(r2r, gitrank, ch, r1, r2):
+    return sum([gitrank[ch2] * r2r[ch1][ch2] for ch1 in ch[r1] if ch1 in r2r for ch2 in r2r[ch1].keys() if ch2 in ch[r2]]) \
+            / sum([gitrank[ch2] for ch2 in ch[r2]])
+
+def recluster_better(repos, gitrank, prev_r2r, prev_ch, num_iters, damping=0.95):
+    # Not better yet
+    prev_exemplars = [x for x in prev_ch if x in prev_ch[x]]
+    next_r2r = {r1: {r2: eco_r2r(prev_r2r, gitrank, prev_ch, r1, r2) for r2 in prev_r2r[r1].keys() if r2 in prev_exemplars} for r1 in prev_r2r.keys() if r1 in prev_exemplars}
+    resp, avail = calc_similarities(next_r2r, repos, 0, num_iters, damping)
+    next_ex, next_ch = gen_exemplars(resp, avail)
+    return next_r2r, next_ch
+
 if __name__ == "__main__":
     data_path = "./downloaded_data"
     repos, users = load_repos(data_path), load_users(data_path)
