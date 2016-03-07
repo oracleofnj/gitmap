@@ -25,6 +25,67 @@ def get_crawled(crawlable):
 def is_bot(user):
     return user in bots
 
+def remove_bots(repos, users):
+    crawled_repos = get_crawled(repos)
+    for (repo, repoval) in crawled_repos.iteritems():
+        if "contributors" in repoval and len(repoval["contributors"]) > 0:
+            for contributor in repoval["contributors"].keys():
+                if is_bot(contributor):
+                    repoval["total_log1p_contribs"] = repoval["total_log1p_contribs"] - repoval["contributors"][contributor]["log1p_contributions"]
+                    del repoval["contributors"][contributor]
+    for user in users.keys():
+        if is_bot(user):
+            del users[user]
+
+def remove_uncrawled_stars(repos, users):
+    crawled_repos, crawled_users = get_crawled(repos), get_crawled(users)
+    for (user, userval) in crawled_users.iteritems():
+        if "stars" in userval:
+            for star in userval["stars"].keys():
+                if star not in crawled_repos:
+                    del userval["stars"][star]
+
+def calc_outbound(repos, users):
+    crawled_repos, crawled_users = get_crawled(repos), get_crawled(users)
+    num_repos = len(crawled_repos)
+    for (repo, repoval) in crawled_repos.iteritems():
+        repoval["shadow_starlist"] = {}
+        if "contributors" in repoval and len(repoval["contributors"]) > 0:
+            starsum = 0
+            for (contributor, contribval) in repoval["contributors"].iteritems():
+                if "contrib_list" not in users[contributor]:
+                    users[contributor]["contrib_list"] = []
+                users[contributor]["contrib_list"].append(repo)
+                if (not is_bot(contributor)) and contributor in crawled_users and "stars" in crawled_users[contributor]:
+                    starcount = len([s for s in crawled_users[contributor]["stars"].keys() if s in crawled_repos])
+                    if starcount > 0:
+                        starsum += contribval["log1p_contributions"]
+                        for star in crawled_users[contributor]["stars"].keys():
+                            if star in crawled_repos:
+                                if star not in repoval["shadow_starlist"]:
+                                    repoval["shadow_starlist"][star] = 0
+                                repoval["shadow_starlist"][star] = repoval["shadow_starlist"][star] + (contribval["log1p_contributions"] / starcount)
+            for star in repoval["shadow_starlist"].keys():
+                repoval["shadow_starlist"][star] = repoval["shadow_starlist"][star] / starsum
+        if len(repoval["shadow_starlist"]) == 0:
+            repoval["shadow_starlist"] = {r: 1.0/num_repos for r in crawled_repos.keys()}
+    for (repo, repoval) in crawled_repos.iteritems():
+        repoval["contriblist"] = {}
+        if "contributors" in repoval and len(repoval["contributors"]) > 0:
+            contribsum = 0
+            for (contributor, contribval) in repoval["contributors"].iteritems():
+                if (not is_bot(contributor)):
+                    contribcount = len(users[contributor]["contrib_list"])
+                    contribsum += contribval["log1p_contributions"]
+                    for contributed_to in users[contributor]["contrib_list"]:
+                        if contributed_to not in repoval["contriblist"]:
+                            repoval["contriblist"][contributed_to] = 0
+                        repoval["contriblist"][contributed_to] = repoval["contriblist"][contributed_to] + (contribval["log1p_contributions"] / contribcount)
+            for contributed_to in repoval["contriblist"].keys():
+                repoval["contriblist"][contributed_to] = repoval["contriblist"][contributed_to] / contribsum
+        if len(repoval["contriblist"]) == 0:
+            repoval["contriblist"] = {r: 1.0/num_repos for r in crawled_repos.keys()}
+
 def calc_graph(repos, users):
     crawled_repos, crawled_users = get_crawled(repos), get_crawled(users)
 
@@ -116,6 +177,17 @@ def repo_to_repo_links(links, contrib_prob=0.33333):
                           key = lambda x: -x[2]-x[3])
 
     return repo_to_repo, linkedrepos
+
+def outbound_r2r(r2r):
+    res, ig1 = {}, itemgetter(1)
+    for r1 in r2r.keys():
+        for r2 in r2r[r1].keys():
+            if r2 not in res:
+                res[r2] = {}
+            res[r2][r1] = r2r[r1][r2]
+    for r2 in res.keys():
+        res[r2] = OrderedDict([x for x in sorted(res[r2].iteritems(), key=ig1, reverse=True)])
+    return res
 
 def calc_similarities(r2r, repos, initial_pref=0, num_iters=10, damping=0.95):
     ig1 = itemgetter(1)

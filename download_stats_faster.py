@@ -106,7 +106,8 @@ def process_contributors(next_repo_key, contributors, to_crawl):
                  "userObj": cTuple[0],
                  "starweight": total_starweight * math.log1p(cTuple[2]) / total_contribs,
                  "crawled": False}
-        to_crawl["ordered_users"][cTuple[1]] = to_crawl["users"][cTuple[1]]["starweight"]
+        if not to_crawl["users"][cTuple[1]]["crawled"]:
+            to_crawl["ordered_users"][cTuple[1]] = to_crawl["users"][cTuple[1]]["starweight"]
     to_crawl["ordered_users"] = reorder(to_crawl["ordered_users"])
 
 def process_stars(next_user_key, stars, to_crawl):
