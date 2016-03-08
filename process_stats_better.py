@@ -45,6 +45,12 @@ def remove_uncrawled_stars(repos, users):
                 if star not in crawled_repos:
                     del userval["stars"][star]
 
+def remove_no_contribs(repos):
+    crawled_repos = get_crawled(repos)
+    for (repo, repoval) in crawled_repos.iteritems():
+        if "contributors" not in repoval or len(repoval["contributors"]) == 0:
+            del repos[repo]
+
 def calc_outbound(repos, users):
     crawled_repos, crawled_users = get_crawled(repos), get_crawled(users)
     num_repos = len(crawled_repos)
@@ -85,6 +91,24 @@ def calc_outbound(repos, users):
                 repoval["contriblist"][contributed_to] = repoval["contriblist"][contributed_to] / contribsum
         if len(repoval["contriblist"]) == 0:
             repoval["contriblist"] = {r: 1.0/num_repos for r in crawled_repos.keys()}
+
+def calc_inbound(repos, contrib_prob = 0.333333):
+    crawled_repos = get_crawled(repos)
+    res = {}
+    for (src, srcval) in crawled_repos.iteritems():
+        for (dst, dstval) in srcval["contriblist"].iteritems():
+            if dst not in res:
+                res[dst] = {}
+            if src not in res[dst]:
+                res[dst][src] = 0
+            res[dst][src] = res[dst][src] + contrib_prob * dstval
+        for (dst, dstval) in srcval["shadow_starlist"].iteritems():
+            if dst not in res:
+                res[dst] = {}
+            if src not in res[dst]:
+                res[dst][src] = 0
+            res[dst][src] = res[dst][src] + (1 - contrib_prob) * dstval
+    return res
 
 def calc_graph(repos, users):
     crawled_repos, crawled_users = get_crawled(repos), get_crawled(users)
@@ -156,6 +180,18 @@ def calc_gitrank_graph(links, iters=25, damping=0.85, contrib_prob=0.33333):
                                                     for (repo, weight) in links[user][1].iteritems()], key=lambda x: -x[1])))) \
                                 for user in users], key=lambda x: -x[1][0]))
 
+def calc_gitrank_better(r2r, iters=25, damping=0.85):
+    num_nodes = len(r2r)
+    ranks = {key: 1.0/num_nodes for key in r2r.keys()}
+    for i in xrange(iters):
+        print "round {0}".format(i+1)
+        newranks = {}
+        for (dst, dstval) in r2r.iteritems():
+            newranks[dst] = (1.0 - damping) / num_nodes + \
+                            damping * sum([ranks[src]*weight for (src, weight) in dstval.iteritems()])
+        ranks = newranks
+    return OrderedDict(sorted(ranks.iteritems(), key=lambda x: x[1], reverse=True))
+
 def repo_to_repo_links(links, contrib_prob=0.33333):
     repos = [key for (key, val) in links.iteritems() if val[0] == "repo"]
     repo_to_repo = {linked_to: {linker: 0 for linker in repos} for linked_to in repos}
@@ -189,27 +225,22 @@ def outbound_r2r(r2r):
         res[r2] = OrderedDict([x for x in sorted(res[r2].iteritems(), key=ig1, reverse=True)])
     return res
 
-def calc_similarities(r2r, repos, initial_pref=0, num_iters=10, damping=0.95):
-    ig1 = itemgetter(1)
-    selfsims = sorted([(repo, r2r[repo][repo]) for repo in r2r.keys()], key=ig1, reverse=True)
-    selfsims_dict = {repo: selfsim for (repo, selfsim) in selfsims}
-    starred_repos = sorted([(repo, repos[repo]["stargazers_count"], selfsims_dict[repo]) for repo in selfsims_dict.keys()], key=ig1, reverse=True)
-    ordered_repos = [repo for (repo, sg, ss) in starred_repos]
-    starcounts_dict = {repo: sg for (repo, sg, ss) in starred_repos}
-
+def calc_similarities(r2r, initial_pref=0, num_iters=10, damping=0.95, pruning=0.0002):
+    repos = r2r.keys()
+    pruned_r2r = {r1: {r2: val for (r2, val) in d.iteritems() if val > pruning} for (r1, d) in r2r.iteritems()}
     sim = {}
-    for (exemplar, points) in r2r.iteritems():
+    for (exemplar, points) in pruned_r2r.iteritems():
         for (point, weight) in points.iteritems():
             if point not in sim:
                 sim[point] = {}
-            sim[point][exemplar] = weight if point != exemplar else initial_pref
-            ### math.log(starcounts_dict[exemplar]/100) * weight if point != exemplar else initial_pref
+            sim[point][exemplar] = weight * (1 if point != exemplar else initial_pref)
 
     avail = {exemplar: {point: 0 \
-            for point in r2r[exemplar].keys()} for exemplar in ordered_repos}
+            for point in pruned_r2r[exemplar].keys()} for exemplar in repos}
 
     oldresp, oldavail, damp = None, None, 1
     for i in xrange(num_iters):
+        print "round {0}".format(i+1)
         # todo: fix damping
         resp = {}
         for point in sim.keys():
@@ -233,15 +264,15 @@ def calc_similarities(r2r, repos, initial_pref=0, num_iters=10, damping=0.95):
                             for exemplar in sim[point].keys()}
 
         avail = {}
-        for exemplar in ordered_repos:
-            positive_resps = sum([max(0, resp[otherpoint][exemplar]) for otherpoint in r2r[exemplar].keys()])
+        for exemplar in repos:
+            positive_resps = sum([max(0, resp[otherpoint][exemplar]) for otherpoint in pruned_r2r[exemplar].keys()])
             avail[exemplar] = {point: \
                                 (oldavail[exemplar][point]*(1-damp) if oldavail != None else 0) + \
                                 (damp if oldavail != None else 1) * \
                 (min(0, resp[exemplar][exemplar] + positive_resps - max(0, resp[point][exemplar]) - max(0, resp[exemplar][exemplar])) \
                     if point != exemplar else \
                 (positive_resps - max(0, resp[exemplar][exemplar]))) \
-                for point in r2r[exemplar].keys()}
+                for point in pruned_r2r[exemplar].keys()}
 
         oldresp, oldavail, damp = resp, avail, damp * damping
 
@@ -281,10 +312,20 @@ def eco_r2r(r2r, gitrank, ch, r1, r2):
     return sum([gitrank[ch2] * r2r[ch1][ch2] for ch1 in ch[r1] if ch1 in r2r for ch2 in r2r[ch1].keys() if ch2 in ch[r2]]) \
             / sum([gitrank[ch2] for ch2 in ch[r2]])
 
-def recluster_better(repos, gitrank, prev_r2r, prev_ch, num_iters, damping=0.95):
+def cluster_r2r(r2r, gitrank, ch):
+    exemplars = [x for x in ch if x in ch[x]]
+    clustered_gitrank = OrderedDict(sorted([(exemplar, sum([gitrank[child] for child in ch[exemplar]])) for exemplar in exemplars],
+                                            key=lambda x: x[1], reverse=True))
+    clustered_r2r = {dst: \
+                        {src: \
+                            sum([r2r[child_dst][child_src]*gitrank[child_src] for child_dst in ch[dst] for child_src in ch[src] if child_src in r2r[child_dst]])/clustered_gitrank[src] \
+                        for src in exemplars} \
+                    for dst in exemplars}
+    return clustered_r2r, clustered_gitrank
+
+def recluster_better(prev_r2r, prev_gitrank, prev_ch, num_iters, initial_pref=0, damping=0.95):
     # Not better yet
-    prev_exemplars = [x for x in prev_ch if x in prev_ch[x]]
-    next_r2r = {r1: {r2: eco_r2r(prev_r2r, gitrank, prev_ch, r1, r2) for r2 in prev_r2r[r1].keys() if r2 in prev_exemplars} for r1 in prev_r2r.keys() if r1 in prev_exemplars}
+    next_r2r, next_gitrank = cluster_r2r(prev_r2r, prev_gitrank, prev_ch)
     resp, avail = calc_similarities(next_r2r, repos, 0, num_iters, damping)
     next_ex, next_ch = gen_exemplars(resp, avail)
     return next_r2r, next_ch
@@ -292,9 +333,12 @@ def recluster_better(repos, gitrank, prev_r2r, prev_ch, num_iters, damping=0.95)
 def main():
     data_path = "./downloaded_data"
     repos, users = load_repos(data_path), load_users(data_path)
-    links = calc_graph(repos, users)
-    r2r, linkedrepos = repo_to_repo_links(links)
-    resp, avail = calc_similarities(r2r, repos, 0, 20)
+    remove_bots(repos, users)
+    remove_uncrawled_stars(repos, users)
+    remove_no_contribs(repos)
+    calc_outbound(repos, users)
+    r2r = calc_inbound(repos)
+    resp, avail = calc_similarities(r2r, 0, 20)
     ex, ch = gen_exemplars(resp, avail)
 
     r2r_2, ch2 = recluster(repos, r2r, ch, 30, 0.97)
