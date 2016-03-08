@@ -1,5 +1,5 @@
-downloaded_data
-downloaded_data/
+data-analysis/downloaded_data
+data-analysis/downloaded_data/
 *.graphml
 *.gml
 *.svg
