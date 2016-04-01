@@ -66,6 +66,8 @@ def get_contributors(repo):
             return [], False
         else:
             raise
+    except TypeError as e:
+        return [], False
 
 def get_stars(user):
 #    try:
@@ -140,6 +142,7 @@ def mark_user_complete(to_crawl, next_user_key, success):
         to_crawl["users"][next_user_key]["failed"] = True
 
 def crawl_github(git_uname, git_pw, data_path):
+    enough_repos = False
     while True:
         g = Github(login_or_token=git_uname, password=git_pw, per_page=100)
         to_crawl = {"repos": load_repos(g, data_path), "users": load_users(g, data_path)}
@@ -152,15 +155,16 @@ def crawl_github(git_uname, git_pw, data_path):
                 print "API calls remaining before %s: %d" % (
                     datetime.datetime.fromtimestamp(g.rate_limiting_resettime).strftime('%Y-%m-%d %H:%M:%S'),
                     g.rate_limiting[0])
-                next_repo_key = next(to_crawl["ordered_repos"].iteritems())[0]
-                next_repo_val = to_crawl["repos"][next_repo_key]
-                print "Processing repo: %s (%d stars)" % (next_repo_key, next_repo_val["stargazers_count"])
-                if "repoObj" not in next_repo_val: # cached from disk
-                    next_repo_val["repoObj"] = g.get_repo(next_repo_key)
-                contributors, success = get_contributors(next_repo_val["repoObj"])
-                if success:
-                    process_contributors(next_repo_key, contributors, to_crawl)
-                mark_repo_complete(to_crawl, next_repo_key, success)
+                if not enough_repos:
+                    next_repo_key = next(to_crawl["ordered_repos"].iteritems())[0]
+                    next_repo_val = to_crawl["repos"][next_repo_key]
+                    print "Processing repo: %s (%d stars)" % (next_repo_key, next_repo_val["stargazers_count"])
+                    if "repoObj" not in next_repo_val: # cached from disk
+                        next_repo_val["repoObj"] = g.get_repo(next_repo_key)
+                    contributors, success = get_contributors(next_repo_val["repoObj"])
+                    if success:
+                        process_contributors(next_repo_key, contributors, to_crawl)
+                    mark_repo_complete(to_crawl, next_repo_key, success)
 
                 next_user_key = next(to_crawl["ordered_users"].iteritems())[0]
                 next_user_val = to_crawl["users"][next_user_key]
@@ -178,6 +182,12 @@ def crawl_github(git_uname, git_pw, data_path):
                     print "Processed %d times, saving..." % i
                     save_repos(to_crawl["repos"], data_path)
                     save_users(to_crawl["users"], data_path)
+                    num_crawled_repos = len([r for (r, v) in to_crawl["repos"].iteritems() if v["crawled"]])
+                    num_crawled_users = len([r for (r, v) in to_crawl["users"].iteritems() if v["crawled"]])
+                    print "Crawled repos: %d" % num_crawled_repos
+                    print "Crawled users: %d" % num_crawled_users
+                    if num_crawled_repos > 10500:
+                        enough_repos = True
             except Exception as e:
                 print e
                 print "Going to sleep for an hour and a half..."
